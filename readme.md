@@ -1,4 +1,4 @@
-## Winload <img src="https://github.com/user-attachments/assets/62fec846-0442-47f6-bbba-78acdc8803ef" height="32px">
+# Winload <img src="https://github.com/user-attachments/assets/62fec846-0442-47f6-bbba-78acdc8803ef" height="32px">
 
 > A lightweight, real-time CLI tool for monitoring network bandwidth and traffic, inspired by Linux's nload.
 
