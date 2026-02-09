@@ -6,6 +6,7 @@ Usage: python3 build.py [--clean]
 
 import argparse
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -20,6 +21,27 @@ TARGETS = [
     ("x86_64-unknown-linux-gnu", "winload", "winload-linux-x86_64"),
     ("x86_64-pc-windows-gnu", "winload.exe", "winload-windows-x86_64.exe"),
 ]
+
+
+def extract_version_from_cargo_toml():
+    """从 Cargo.toml 提取版本号"""
+    cargo_toml = RUST_DIR / "Cargo.toml"
+    if not cargo_toml.exists():
+        print("❌ Cargo.toml not found")
+        return None
+    
+    with open(cargo_toml, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # 匹配 version = "x.y.z" 格式
+    match = re.search(r'^version\s*=\s*"([^"]+)"', content, re.MULTILINE)
+    if match:
+        version = match.group(1)
+        print(f"📦 Extracted version from Cargo.toml: v{version}")
+        return f"v{version}"
+    
+    print("⚠️  Could not extract version from Cargo.toml")
+    return None
 
 
 def run_command(cmd, cwd=None, check=True):
@@ -51,7 +73,7 @@ def ensure_target_installed(target):
         print(f"   ✓ {target} already installed")
 
 
-def build_target(target, binary_name, output_name):
+def build_target(target, binary_name, output_name, version=None):
     """编译指定 target"""
     print(f"\n🔨 Building {target}...")
     
@@ -74,9 +96,23 @@ def build_target(target, binary_name, output_name):
         print(f"❌ Build failed for {target}")
         return False
     
+    # 生成带版本号的输出文件名
+    if version:
+        # 在扩展名前插入版本号
+        # winload-linux-x86_64 -> winload-linux-x86_64-v0.1.0
+        # winload-windows-x86_64.exe -> winload-windows-x86_64-v0.1.0.exe
+        base_name = output_name
+        ext = ""
+        if "." in output_name:
+            base_name, ext = output_name.rsplit(".", 1)
+            ext = "." + ext
+        output_name_versioned = f"{base_name}-{version}{ext}"
+    else:
+        output_name_versioned = output_name
+    
     # 复制产物到 dist 目录
     source = RUST_DIR / "target" / target / "release" / binary_name
-    dest = OUTPUT_DIR / output_name
+    dest = OUTPUT_DIR / output_name_versioned
     
     if not source.exists():
         print(f"❌ Binary not found: {source}")
@@ -87,7 +123,7 @@ def build_target(target, binary_name, output_name):
     
     # 显示文件信息
     size_mb = dest.stat().st_size / 1024 / 1024
-    print(f"✓ {output_name} ({size_mb:.2f} MB)")
+    print(f"✓ {output_name_versioned} ({size_mb:.2f} MB)")
     
     return True
 
@@ -108,6 +144,11 @@ def main():
     print("=" * 60)
     print("🚀 Building winload for multiple platforms")
     print("=" * 60)
+    
+    # 提取版本号
+    version = extract_version_from_cargo_toml()
+    if not version:
+        print("⚠️  Building without version number in filename")
     
     # 检查是否在 WSL 中
     if not Path("/proc/version").exists():
@@ -138,7 +179,7 @@ def main():
     # 编译所有 target
     success_count = 0
     for target, binary, output in TARGETS:
-        if build_target(target, binary, output):
+        if build_target(target, binary, output, version):
             success_count += 1
     
     # 总结

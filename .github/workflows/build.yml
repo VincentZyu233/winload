@@ -17,28 +17,49 @@ jobs:
     outputs:
       should_build: ${{ steps.flags.outputs.should_build }}
       should_release: ${{ steps.flags.outputs.should_release }}
+      should_publish: ${{ steps.flags.outputs.should_publish }}
+      version: ${{ steps.flags.outputs.version }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
       - name: Parse commit message
         id: flags
         run: |
           MSG="${{ github.event.head_commit.message }}"
+          
+          # 从 Cargo.toml 提取版本号
+          VERSION="v$(grep '^version' rust/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "📦 Version: $VERSION"
+          
           # PR 始终构建
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "should_build=true"   >> "$GITHUB_OUTPUT"
+            echo "should_build=true"    >> "$GITHUB_OUTPUT"
             echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # "build release" 同时构建 + 发布
-          if echo "$MSG" | grep -qi "build release"; then
-            echo "should_build=true"   >> "$GITHUB_OUTPUT"
-            echo "should_release=true" >> "$GITHUB_OUTPUT"
-          # "build action" 只构建
+          
+          # "build publish" = 完整发布流程
+          if echo "$MSG" | grep -qi "build publish"; then
+            echo "should_build=true"    >> "$GITHUB_OUTPUT"
+            echo "should_release=true"  >> "$GITHUB_OUTPUT"
+            echo "should_publish=true"  >> "$GITHUB_OUTPUT"
+          # "build release" = 构建 + GitHub Release
+          elif echo "$MSG" | grep -qi "build release"; then
+            echo "should_build=true"    >> "$GITHUB_OUTPUT"
+            echo "should_release=true"  >> "$GITHUB_OUTPUT"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+          # "build action" = 仅构建
           elif echo "$MSG" | grep -qi "build action"; then
-            echo "should_build=true"   >> "$GITHUB_OUTPUT"
+            echo "should_build=true"    >> "$GITHUB_OUTPUT"
             echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
           else
-            echo "should_build=false"  >> "$GITHUB_OUTPUT"
+            echo "should_build=false"   >> "$GITHUB_OUTPUT"
             echo "should_release=false" >> "$GITHUB_OUTPUT"
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
           fi
 
   # ── 多平台构建 ───────────────────────────────────────────
@@ -100,13 +121,32 @@ jobs:
 
       - name: Prepare artifact
         shell: bash
-        run: cp "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "${{ matrix.asset }}"
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          ASSET_BASE="${{ matrix.asset }}"
+          
+          # 在扩展名前插入版本号
+          # winload-linux-x86_64 -> winload-linux-x86_64-v0.1.0
+          # winload-windows-x86_64.exe -> winload-windows-x86_64-v0.1.0.exe
+          if [[ "$ASSET_BASE" == *.* ]]; then
+            # 有扩展名
+            BASE_NAME="${ASSET_BASE%.*}"
+            EXTENSION="${ASSET_BASE##*.}"
+            ASSET_WITH_VERSION="${BASE_NAME}-${VERSION}.${EXTENSION}"
+          else
+            # 无扩展名
+            ASSET_WITH_VERSION="${ASSET_BASE}-${VERSION}"
+          fi
+          
+          echo "📦 Output: $ASSET_WITH_VERSION"
+          cp "rust/target/${{ matrix.target }}/release/${{ matrix.binary }}" "$ASSET_WITH_VERSION"
+          echo "asset_name=$ASSET_WITH_VERSION" >> "$GITHUB_ENV"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset }}
-          path: ${{ matrix.asset }}
+          name: ${{ env.asset_name }}
+          path: ${{ env.asset_name }}
 
   # ── 发布到 GitHub Releases ─────────────────────────────
   release:
@@ -115,29 +155,26 @@ jobs:
     if: needs.check.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout (for version info)
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Determine version tag
-        id: version
-        run: |
-          VER=$(grep '^version' rust/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
-          TAG="v${VER}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Version: ${TAG}"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           merge-multiple: true
 
+      - name: List downloaded files
+        run: |
+          echo "Downloaded artifacts:"
+          ls -lh
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: "winload ${{ steps.version.outputs.tag }}"
+          tag_name: ${{ needs.check.outputs.version }}
+          name: "winload ${{ needs.check.outputs.version }}"
           generate_release_notes: true
           make_latest: true
-          files: winload-*
+          files: winload-*-${{ needs.check.outputs.version }}*
