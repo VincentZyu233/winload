@@ -170,11 +170,65 @@ jobs:
           echo "Downloaded artifacts:"
           ls -lh
 
+      - name: Delete existing release & tag (force fresh release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          echo "🗑️ Cleaning up existing release/tag: $VERSION"
+          gh release delete "$VERSION" --yes --cleanup-tag 2>/dev/null || echo "No existing release to delete"
+          # 等待 GitHub API 同步
+          sleep 3
+
+      - name: Generate release notes from commits
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          
+          # 查找上一个 release tag（排除当前版本）
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1)
+          
+          {
+            echo "## 📦 winload ${VERSION}"
+            echo ""
+            echo "### What's Changed"
+            echo ""
+          
+            if [ -n "$PREV_TAG" ]; then
+              echo "Changes since **${PREV_TAG}**:"
+              echo ""
+              git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (\`%h\`) — @%an" --reverse
+            else
+              echo "All changes since repository creation:"
+              echo ""
+              git log --pretty=format:"- %s (\`%h\`) — @%an" --reverse
+            fi
+          
+            echo ""
+            echo ""
+            echo "---"
+            echo ""
+            echo "### 📊 Build Info"
+            echo "- **Build date**: $(date -u '+%Y-%m-%d %H:%M UTC')"
+            echo "- **Commit**: [\`${GITHUB_SHA::7}\`](https://github.com/${{ github.repository }}/commit/${GITHUB_SHA})"
+            echo ""
+            
+            if [ -n "$PREV_TAG" ]; then
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...${VERSION}"
+            else
+              echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${VERSION}"
+            fi
+          } > release_notes.md
+          
+          echo "📝 Generated release notes:"
+          cat release_notes.md
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.check.outputs.version }}
-          name: "winload ${{ needs.check.outputs.version }}"
-          generate_release_notes: true
-          make_latest: true
-          files: winload-*-${{ needs.check.outputs.version }}*
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          gh release create "$VERSION" \
+            --title "winload ${VERSION}" \
+            --notes-file release_notes.md \
+            --latest \
+            winload-*-${VERSION}*
