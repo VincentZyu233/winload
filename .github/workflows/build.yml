@@ -131,6 +131,7 @@ jobs:
         with:
           workspaces: rust -> target
           cache-on-failure: true
+          key: ${{ matrix.target }}
 
       - name: Install platform toolchain
         if: matrix.cross_packages
@@ -139,6 +140,7 @@ jobs:
           sudo apt-get install -y ${{ matrix.cross_packages }}
 
       - name: Build release binary
+        shell: bash
         working-directory: rust
         env:
           # 交叉编译时指定链接器 (仅 aarch64-linux-gnu 需要)
