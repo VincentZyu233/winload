@@ -4,6 +4,7 @@ ui.py - 基于 curses 的 TUI 界面渲染
 """
 
 import curses
+import sys
 from typing import List, Optional
 
 from collector import Collector, DeviceInfo
@@ -38,6 +39,7 @@ class UI:
     COLOR_STAT_LABEL = 7
     COLOR_STAT_VALUE = 8
     COLOR_HELP = 9
+    COLOR_ERROR = 10
 
     def __init__(self, stdscr: "curses.window", collector: Collector):
         self.stdscr = stdscr
@@ -54,10 +56,11 @@ class UI:
             curses.init_pair(self.COLOR_LABEL, curses.COLOR_GREEN, -1)
             curses.init_pair(self.COLOR_GRAPH_FULL, curses.COLOR_GREEN, -1)
             curses.init_pair(self.COLOR_GRAPH_HIGH, curses.COLOR_GREEN, -1)
-            curses.init_pair(self.COLOR_GRAPH_LOW, curses.COLOR_GREEN, -1)
+            curses.init_pair(self.COLOR_GRAPH_LOW, curses.COLOR_WHITE, -1)
             curses.init_pair(self.COLOR_STAT_LABEL, curses.COLOR_CYAN, -1)
             curses.init_pair(self.COLOR_STAT_VALUE, curses.COLOR_WHITE, -1)
             curses.init_pair(self.COLOR_HELP, curses.COLOR_YELLOW, -1)
+            curses.init_pair(self.COLOR_ERROR, curses.COLOR_RED, -1)
         except curses.error:
             pass
 
@@ -128,6 +131,12 @@ class UI:
         )
         self._safe_addstr(row, 0, header, curses.color_pair(self.COLOR_HEADER) | curses.A_BOLD)
         row += 1
+
+        # ── Loopback 警告（仅 Windows）──
+        if self._is_loopback_on_windows(view):
+            warning = " \u26a0 Loopback traffic stats are not available on Windows"
+            self._safe_addstr(row, 0, warning, curses.color_pair(self.COLOR_HELP))
+            row += 1
 
         # ── 分隔线 ──
         sep = "=" * min(max_x - 1, 120)
@@ -224,7 +233,7 @@ class UI:
                 elif ch == "|":
                     color = curses.color_pair(self.COLOR_GRAPH_HIGH)
                 elif ch == ".":
-                    color = curses.color_pair(self.COLOR_GRAPH_LOW)
+                    color = curses.color_pair(self.COLOR_GRAPH_LOW) | curses.A_DIM
                 else:
                     continue  # 空格不画
                 self._safe_addch(row, col_idx, ch, color)
@@ -266,7 +275,10 @@ class UI:
         msg = "Terminal too small!"
         y = max_y // 2
         x = max(0, (max_x - len(msg)) // 2)
-        self._safe_addstr(y, x, msg)
+        self._safe_addstr(
+            y, x, msg,
+            curses.color_pair(self.COLOR_ERROR) | curses.A_BOLD,
+        )
 
     def _safe_addstr(self, y: int, x: int, text: str, attr: int = 0) -> None:
         """安全写入字符串，忽略边界溢出"""
@@ -286,6 +298,18 @@ class UI:
             self.stdscr.addch(y, x, ch, attr)
         except curses.error:
             pass
+
+    def _is_loopback_on_windows(self, view: DeviceView) -> bool:
+        """检测当前是否为 Windows 平台的 Loopback 设备"""
+        if sys.platform != "win32":
+            return False
+        # 设备名包含 "loopback"（同 Rust 逻辑）
+        if "loopback" in view.name.lower():
+            return True
+        # 地址为 127.0.0.1
+        if view.info and any(a == "127.0.0.1" for a in view.info.addrs):
+            return True
+        return False
 
     def handle_key(self, key: int) -> bool:
         """

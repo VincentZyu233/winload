@@ -30,10 +30,10 @@ ls rust/dist/
 ### 3. 计算文件哈希（用于包管理器）
 ```bash
 # Linux/macOS/WSL
-sha256sum rust/dist/winload-*-v0.1.0*
+sha256sum ./winload-*-v0.1.0*
 
 # Windows PowerShell
-Get-FileHash rust/dist/winload-*.exe -Algorithm SHA256
+Get-FileHash ./winload-*.exe -Algorithm SHA256
 ```
 #### for example:
 ```powershell
@@ -83,7 +83,7 @@ cat > winload.json <<'EOF'
             "hash": "sha256:填入上面计算的哈希值"
         }
     },
-    "bin": [["winload-windows-x86_64-v0.1.0.exe", "winload"]],
+    "bin": [["winload-windows-x86_64-v0.1.0.exe", "win-nload"]],
     "checkver": {
         "github": "https://github.com/VincentZyu233/winload"
     },
@@ -109,6 +109,7 @@ git push
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyu233/scoop-bucket
 scoop install winload
+win-nload
 ```
 
 ---
@@ -153,7 +154,7 @@ Installers:
     InstallerUrl: https://github.com/VincentZyu233/winload/releases/download/v0.1.0/winload-windows-x86_64-v0.1.0.exe
     InstallerSha256: 填入哈希值
     Commands:
-      - winload
+      - win-nload
 ManifestType: installer
 ManifestVersion: 1.6.0
 ```
@@ -224,7 +225,7 @@ depends = "$auto"
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/winload", "usr/bin/", "755"],
+    ["target/release/winload", "usr/bin/win-nload", "755"],
 ]
 ```
 
@@ -264,7 +265,7 @@ cargo install cargo-generate-rpm
 ```toml
 [package.metadata.generate-rpm]
 assets = [
-    { source = "target/release/winload", dest = "/usr/bin/winload", mode = "755" },
+    { source = "target/release/winload", dest = "/usr/bin/win-nload", mode = "755" },
 ]
 ```
 
@@ -320,13 +321,13 @@ pkgdesc="Network Load Monitor - nload for Windows/Linux/macOS"
 arch=('x86_64')
 url="https://github.com/VincentZyu233/winload"
 license=('MIT')
-provides=('winload')
-conflicts=('winload')
+provides=('win-nload')
+conflicts=('win-nload')
 source=("https://github.com/VincentZyu233/winload/releases/download/v${pkgver}/winload-linux-x86_64-v${pkgver}")
 sha256sums=('填入哈希值')
 
 package() {
-    install -Dm755 "$srcdir/winload-linux-x86_64-v${pkgver}" "$pkgdir/usr/bin/winload"
+    install -Dm755 "$srcdir/winload-linux-x86_64-v${pkgver}" "$pkgdir/usr/bin/win-nload"
 }
 EOF
 ```
@@ -392,7 +393,7 @@ license="MIT"
 source="https://github.com/VincentZyu233/winload/releases/download/v$pkgver/winload-linux-x86_64-v$pkgver"
 
 package() {
-    install -Dm755 "$srcdir/winload-linux-x86_64-v$pkgver" "$pkgdir/usr/bin/winload"
+    install -Dm755 "$srcdir/winload-linux-x86_64-v$pkgver" "$pkgdir/usr/bin/win-nload"
 }
 
 sha512sums="填入 sha512 哈希"
@@ -439,14 +440,14 @@ class Winload < Formula
 
   def install
     if Hardware::CPU.arm?
-      bin.install "winload-macos-aarch64-v#{version}" => "winload"
+      bin.install "winload-macos-aarch64-v#{version}" => "win-nload"
     else
-      bin.install "winload-macos-x86_64-v#{version}" => "winload"
+      bin.install "winload-macos-x86_64-v#{version}" => "win-nload"
     end
   end
 
   test do
-    system "#{bin}/winload", "--version"
+    system "#{bin}/win-nload", "--version"
   end
 end
 EOF
@@ -491,7 +492,7 @@ cargo build --release --target aarch64-linux-android
 pkg install wget
 wget https://github.com/VincentZyu233/winload/releases/download/v0.1.0/winload-android-aarch64-v0.1.0
 chmod +x winload-android-aarch64-v0.1.0
-mv winload-android-aarch64-v0.1.0 $PREFIX/bin/winload
+mv winload-android-aarch64-v0.1.0 $PREFIX/bin/win-nload
 ```
 
 ---

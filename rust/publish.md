@@ -189,7 +189,7 @@ jobs:
                 "hash": "$HASH"
               }
             },
-            "bin": [["winload-windows-x86_64.exe", "winload"]],
+            "bin": [["winload-windows-x86_64.exe", "win-nload"]],
             "checkver": "github",
             "autoupdate": {
               "architecture": {
@@ -244,13 +244,13 @@ jobs:
           arch=('x86_64')
           url="https://github.com/VincentZyu233/winload"
           license=('MIT')
-          provides=('winload')
-          conflicts=('winload')
+          provides=('win-nload')
+          conflicts=('win-nload')
           source=("https://github.com/VincentZyu233/winload/releases/download/$VERSION/winload-linux-x86_64")
           sha256sums=('$SHA256')
 
           package() {
-              install -Dm755 "\$srcdir/winload-linux-x86_64" "\$pkgdir/usr/bin/winload"
+              install -Dm755 "\$srcdir/winload-linux-x86_64" "\$pkgdir/usr/bin/win-nload"
           }
           EOF
       
@@ -302,7 +302,7 @@ jobs:
                   "hash": "${{ steps.hash.outputs.hash }}"
                 }
               },
-              "bin": "winload-windows-x86_64.exe"
+              "bin": [["winload-windows-x86_64.exe", "win-nload"]]
             }
           bucket_repo: VincentZyu233/scoop-bucket
           token: ${{ secrets.SCOOP_TOKEN }}
@@ -363,12 +363,12 @@ class Winload < Formula
   end
 
   def install
-    bin.install "winload-macos-aarch64" => "winload" if Hardware::CPU.arm?
-    bin.install "winload-macos-x86_64" => "winload" unless Hardware::CPU.arm?
+    bin.install "winload-macos-aarch64" => "win-nload" if Hardware::CPU.arm?
+    bin.install "winload-macos-x86_64" => "win-nload" unless Hardware::CPU.arm?
   end
 
   test do
-    system "#{bin}/winload", "--version"
+    system "#{bin}/win-nload", "--version"
   end
 end
 ```
@@ -448,12 +448,12 @@ depends = "$auto"
 section = "utils"
 priority = "optional"
 assets = [
-    ["target/release/winload", "usr/bin/", "755"],
+    ["target/release/winload", "usr/bin/win-nload", "755"],
 ]
 
 [package.metadata.generate-rpm]
 assets = [
-    { source = "target/release/winload", dest = "/usr/bin/winload", mode = "755" },
+    { source = "target/release/winload", dest = "/usr/bin/win-nload", mode = "755" },
 ]
 ```
 
@@ -483,13 +483,13 @@ pkgdesc="Network Load Monitor"
 arch=('x86_64')
 url="https://github.com/VincentZyu233/winload"
 license=('MIT')
-provides=('winload')
-conflicts=('winload')
+provides=('win-nload')
+conflicts=('win-nload')
 source=("https://github.com/VincentZyu233/winload/releases/download/v${pkgver}/winload-linux-x86_64")
 sha256sums=('SKIP')
 
 package() {
-    install -Dm755 "$srcdir/winload-linux-x86_64" "$pkgdir/usr/bin/winload"
+    install -Dm755 "$srcdir/winload-linux-x86_64" "$pkgdir/usr/bin/win-nload"
 }
 ```
 
