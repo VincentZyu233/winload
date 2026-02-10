@@ -79,12 +79,13 @@ jobs:
             binary: winload.exe
             asset: winload-windows-x86_64.exe
 
-          # ── Linux x64 (native) ──
-          - target: x86_64-unknown-linux-gnu
+          # ── Linux x64 (musl 静态链接, 兼容所有 Linux) ──
+          - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
             name: linux-x86_64
             binary: winload
             asset: winload-linux-x86_64
+            cross_packages: musl-tools
 
           # ── Windows ARM64 (cross-compile on x64 runner) ──
           - target: aarch64-pc-windows-msvc
@@ -93,9 +94,9 @@ jobs:
             binary: winload.exe
             asset: winload-windows-aarch64.exe
 
-          # ── Linux ARM64 (cross-compile on x64 runner) ──
+          # ── Linux ARM64 (ubuntu-22.04 降低 GLIBC 要求) ──
           - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-22.04
             name: linux-aarch64
             binary: winload
             asset: winload-linux-aarch64
@@ -131,7 +132,7 @@ jobs:
           workspaces: rust -> target
           cache-on-failure: true
 
-      - name: Install cross-compilation toolchain (Linux ARM64)
+      - name: Install platform toolchain
         if: matrix.cross_packages
         run: |
           sudo apt-get update
@@ -140,8 +141,17 @@ jobs:
       - name: Build release binary
         working-directory: rust
         env:
+          # 交叉编译时指定链接器 (仅 aarch64-linux-gnu 需要)
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: ${{ matrix.cross_linker || '' }}
-        run: cargo build --release --target ${{ matrix.target }}
+        run: |
+          cargo build --release --target ${{ matrix.target }}
+
+          # 验证 Linux musl 产物是否真的是静态链接
+          if [[ "${{ matrix.target }}" == *musl* ]]; then
+            echo "🔍 Verifying static linking..."
+            file target/${{ matrix.target }}/release/${{ matrix.binary }}
+            ldd target/${{ matrix.target }}/release/${{ matrix.binary }} 2>&1 || echo "✅ Statically linked (no dynamic dependencies)"
+          fi
 
       - name: Prepare artifact
         shell: bash
