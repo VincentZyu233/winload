@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from multiprocessing import cpu_count
 
 # 路径配置
 RUST_DIR = Path(__file__).parent.absolute()
@@ -127,9 +128,10 @@ def build_target(target, binary_name, output_name, version=None):
         except Exception as e:
             print(f"   ⚠️  Warning: Could not clean {target_dir}: {e}")
     
-    # 编译
+    # 编译 - 使用一半的核心数量（向下取整）以避免过度占用系统资源
+    parallel_jobs = max(1, cpu_count() // 2)  # 至少 1 个 job
     success = run_command(
-        ["cargo", "build", "--release", "--target", target],
+        ["cargo", "build", "--release", "--target", target, "-j", str(parallel_jobs)],
         cwd=RUST_DIR,
     )
     

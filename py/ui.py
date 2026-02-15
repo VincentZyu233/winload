@@ -45,7 +45,8 @@ class UI:
                  emoji: bool = False, unit: str = "bit",
                  fixed_max: Optional[float] = None, no_graph: bool = False,
                  unicode: bool = False, bar_style: str = "fill",
-                 in_color: Optional[tuple] = None, out_color: Optional[tuple] = None):
+                 in_color: Optional[tuple] = None, out_color: Optional[tuple] = None,
+                 hide_separator: bool = False):
         self.stdscr = stdscr
         self.collector = collector
         self.current_device_idx = 0
@@ -58,6 +59,7 @@ class UI:
         self.bar_style = bar_style
         self.in_color_rgb = in_color
         self.out_color_rgb = out_color
+        self.hide_separator = hide_separator
 
         # 初始化颜色
         curses.start_color()
@@ -186,9 +188,10 @@ class UI:
             row += 1
 
         # ── 分隔线 ──
-        sep = "=" * min(max_x - 1, 120)
-        self._safe_addstr(row, 0, sep, curses.color_pair(self.COLOR_SEPARATOR))
-        row += 1
+        if not self.hide_separator:
+            sep = "=" * min(max_x - 1, 120)
+            self._safe_addstr(row, 0, sep, curses.color_pair(self.COLOR_SEPARATOR))
+            row += 1
 
         # 可用于面板的高度
         usable_height = max_y - row - 1  # 留 1 行给底部帮助
@@ -439,6 +442,8 @@ class UI:
         """
         if key in (ord("q"), ord("Q")):
             return False
+        elif key == ord("="):
+            self.hide_separator = not self.hide_separator
         elif key in (curses.KEY_RIGHT, curses.KEY_DOWN, ord("\t"),
                      curses.KEY_NPAGE, 10):  # 10 = Enter
             self.next_device()

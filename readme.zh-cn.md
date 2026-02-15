@@ -51,6 +51,7 @@ winload --npcap      # 捕获 127.0.0.1 回环流量 (Windows，需安装 Npcap)
 | `--out-color <HEX>` | 上行图形颜色，十六进制 RGB（如 `0xffaf00`） | 金色 |
 | `-m`, `--max <VALUE>` | 固定 Y 轴最大值（如 `10M`、`1G`、`500K`） | 自动 |
 | `-n`, `--no-graph` | 隐藏图形，仅显示统计信息 | 关闭 |
+| `--hide-separator` | 隐藏分隔线（等于号一行） | 关闭 |
 | `--npcap` | **[Windows Only]** 通过 Npcap 捕获回环流量（推荐） | 关闭 |
 | `--etw` | **[Windows Only]** 通过 GetIfEntry API 轮询回环计数器（实验性） | 关闭 |
 | `--debug-info` | **[Rust Only]** 打印网络接口调试信息后退出 | — |
@@ -62,6 +63,7 @@ winload --npcap      # 捕获 127.0.0.1 回环流量 (Windows，需安装 Npcap)
 | 按键 | 功能 |
 |------|------|
 | `←` / `→` 或 `↑` / `↓` | 切换网络设备 |
+| `=` | 切换分隔线的显示/隐藏 |
 | `q` / `Esc` | 退出 |
 
 ## 🪟 Windows 回环流量 (127.0.0.1)

@@ -58,9 +58,19 @@ pub fn draw(frame: &mut Frame, app: &App) {
             .map(|v| v.info.name.to_lowercase().contains("loopback"))
             .unwrap_or(false);
 
-    let header_height = if show_loopback_warning || show_etw_warning || show_loopback_info { 3 } else { 2 };
+    // Calculate base header height:
+    // - 1 line for device always
+    // - +1 if there are warnings/info
+    // - +1 if separator is not hidden
+    let mut header_height = 1; // device line
+    if show_loopback_warning || show_etw_warning || show_loopback_info {
+        header_height += 1; // warning/info line
+    }
+    if !app.hide_separator {
+        header_height += 1; // separator line
+    }
 
-    // 主布局: 头部(2或3行) + 内容 + 帮助栏(1行)
+    // 主布局: 头部(动态高度) + 内容 + 帮助栏(1行)
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -210,25 +220,21 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App, show_loopback_warning: 
             }
         }
 
+        // Add separator line as part of lines if not hidden
+        if !app.hide_separator {
+            let sep_width = (area.width as usize).min(120);
+            let separator = Line::from(Span::styled(
+                "=".repeat(sep_width),
+                Style::default().fg(Color::Cyan),
+            ));
+            lines.push(separator);
+        }
+
         let text_height = lines.len() as u16;
         frame.render_widget(
             Paragraph::new(lines),
             Rect {
                 height: text_height,
-                ..area
-            },
-        );
-
-        let sep_width = (area.width as usize).min(120);
-        let separator = Line::from(Span::styled(
-            "=".repeat(sep_width),
-            Style::default().fg(Color::Cyan),
-        ));
-        frame.render_widget(
-            Paragraph::new(vec![separator]),
-            Rect {
-                y: area.y + text_height,
-                height: 1,
                 ..area
             },
         );

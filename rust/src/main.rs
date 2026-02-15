@@ -133,6 +133,10 @@ struct Args {
     #[arg(short = 'n', long = "no-graph")]
     no_graph: bool,
 
+    /// Hide separator line (the row of equals signs between header and panels)
+    #[arg(long = "hide-separator")]
+    hide_separator: bool,
+
     /// [Windows only] Use Npcap to capture loopback traffic (recommended)
     /// Requires Npcap installed: https://npcap.com/#download
     #[arg(long = "npcap", conflicts_with = "etw")]
@@ -168,6 +172,7 @@ pub struct App {
     pub out_color: ratatui::style::Color,
     pub fixed_max: Option<f64>,
     pub no_graph: bool,
+    pub hide_separator: bool,
     pub loopback_mode: LoopbackMode,
     pub loopback_info: Option<String>,
     loopback_counters: Option<LoopbackCounters>,
@@ -218,6 +223,7 @@ impl App {
             out_color: args.out_color.unwrap_or(ratatui::style::Color::Rgb(0xff, 0xaf, 0x00)),
             fixed_max: args.max,
             no_graph: args.no_graph,
+            hide_separator: args.hide_separator,
             loopback_mode,
             loopback_info: None,
             loopback_counters: None,
@@ -316,6 +322,9 @@ fn run(terminal: &mut ratatui::DefaultTerminal, args: Args) -> io::Result<()> {
                             if key.modifiers.contains(KeyModifiers::CONTROL) =>
                         {
                             return Ok(());
+                        }
+                        KeyCode::Char('=') => {
+                            app.hide_separator = !app.hide_separator;
                         }
                         KeyCode::Right | KeyCode::Down | KeyCode::Tab | KeyCode::Enter => {
                             app.next_device();

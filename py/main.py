@@ -127,6 +127,12 @@ def parse_args() -> argparse.Namespace:
         metavar="HEX",
         help="上行图形颜色, 十六进制 RGB (如 0xffaf00)，默认: gold",
     )
+    parser.add_argument(
+        "--hide-separator",
+        action="store_true",
+        default=False,
+        help="隐藏分隔线（头部下方的一行等于号）",
+    )
     return parser.parse_args()
 
 
@@ -145,7 +151,8 @@ def main_loop(stdscr: "curses.window", args: argparse.Namespace) -> None:
     ui = UI(stdscr, collector, emoji=args.emoji, unit=args.unit,
             fixed_max=fixed_max, no_graph=args.no_graph,
             unicode=args.unicode, bar_style=args.bar_style,
-            in_color=args.in_color, out_color=args.out_color)
+            in_color=args.in_color, out_color=args.out_color,
+            hide_separator=args.hide_separator)
 
     # 如果指定了默认设备，切换到对应索引
     if args.device:

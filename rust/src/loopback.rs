@@ -9,7 +9,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-/// Npcap 下载地址
+/// Npcap 下载地址 (仅 Windows)
+#[cfg(target_os = "windows")]
 pub const NPCAP_URL: &str = "https://npcap.com/#download";
 
 /// 回环流量计数器 (线程安全，可在采集线程和主线程之间共享)

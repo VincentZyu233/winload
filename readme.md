@@ -51,6 +51,7 @@ winload --npcap      # Capture 127.0.0.1 loopback traffic (Windows, requires Npc
 | `--out-color <HEX>` | Outgoing graph color, hex RGB (e.g. `0xffaf00`) | gold |
 | `-m`, `--max <VALUE>` | Fixed Y-axis max (e.g. `10M`, `1G`, `500K`) | auto |
 | `-n`, `--no-graph` | Hide graph, show stats only | off |
+| `--hide-separator` | Hide the separator line (row of equals signs) | off |
 | `--npcap` | **[Windows Rust Only]** Capture loopback traffic via Npcap (recommended) | off |
 | `--etw` | **[Windows Rust Only]** Poll loopback counters via GetIfEntry (experimental) | off |
 | `--debug-info` | **[Rust Only]** Print network interface debug info and exit | — |
@@ -62,6 +63,7 @@ winload --npcap      # Capture 127.0.0.1 loopback traffic (Windows, requires Npc
 | Key | Action |
 |-----|--------|
 | `←` / `→` or `↑` / `↓` | Switch network device |
+| `=` | Toggle separator line visibility |
 | `q` / `Esc` | Quit |
 
 ## 🪟 Windows Loopback (127.0.0.1)
