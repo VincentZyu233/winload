@@ -41,26 +41,35 @@ jobs:
             exit 0
           fi
           
-          # "build publish" = 完整发布流程
+          # 初始化标志
+          BUILD=false
+          RELEASE=false
+          PUBLISH=false
+          
+          # "build publish" = 构建 + Release + 发布到包管理器 (全套)
           if echo "$MSG" | grep -qi "build publish"; then
-            echo "should_build=true"    >> "$GITHUB_OUTPUT"
-            echo "should_release=true"  >> "$GITHUB_OUTPUT"
-            echo "should_publish=true"  >> "$GITHUB_OUTPUT"
+            BUILD=true
+            RELEASE=true
+            PUBLISH=true
           # "build release" = 构建 + GitHub Release
           elif echo "$MSG" | grep -qi "build release"; then
-            echo "should_build=true"    >> "$GITHUB_OUTPUT"
-            echo "should_release=true"  >> "$GITHUB_OUTPUT"
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            BUILD=true
+            RELEASE=true
           # "build action" = 仅构建
           elif echo "$MSG" | grep -qi "build action"; then
-            echo "should_build=true"    >> "$GITHUB_OUTPUT"
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_build=false"   >> "$GITHUB_OUTPUT"
-            echo "should_release=false" >> "$GITHUB_OUTPUT"
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            BUILD=true
           fi
+          
+          # "publish from release" = 从已有 Release 发布到包管理器 (不构建)
+          if echo "$MSG" | grep -qi "publish from release"; then
+            PUBLISH=true
+          fi
+          
+          echo "should_build=$BUILD"     >> "$GITHUB_OUTPUT"
+          echo "should_release=$RELEASE" >> "$GITHUB_OUTPUT"
+          echo "should_publish=$PUBLISH" >> "$GITHUB_OUTPUT"
+          
+          echo "📋 Flags: build=$BUILD release=$RELEASE publish=$PUBLISH"
 
   # ── 多平台构建 ───────────────────────────────────────────
   build:
@@ -297,3 +306,108 @@ jobs:
             --notes-file release_notes.md \
             --latest \
             winload-*-${VERSION}*
+
+  # ── 更新 Scoop Bucket ─────────────────────────────────
+  # 触发方式:
+  #   - "publish from release" → 从已有 Release 拉取二进制，仅更新 Scoop
+  #   - "build publish" → 构建 + Release + 更新 Scoop（全套）
+  publish-scoop:
+    name: Update Scoop Bucket
+    needs: [check, release]
+    # always() 让此 job 即使 release 被跳过也能运行
+    if: always() && needs.check.outputs.should_publish == 'true' && (needs.release.result == 'success' || needs.release.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch latest release info
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          REPO="${{ github.repository }}"
+          BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+
+          echo "📦 Target version: ${VERSION}"
+          echo "📥 Downloading Windows binaries from release..."
+
+          # 下载 Windows x64
+          curl -fSL -o winload-windows-x86_64.exe \
+            "${BASE_URL}/winload-windows-x86_64-${VERSION}.exe" \
+            || { echo "❌ Failed to download x64 binary"; exit 1; }
+
+          # 下载 Windows ARM64
+          curl -fSL -o winload-windows-aarch64.exe \
+            "${BASE_URL}/winload-windows-aarch64-${VERSION}.exe" \
+            || { echo "❌ Failed to download arm64 binary"; exit 1; }
+
+          echo "✅ Downloaded:"
+          ls -lh winload-windows-*.exe
+
+      - name: Generate Scoop manifest
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          SCOOP_VERSION="${VERSION#v}"
+          REPO="${{ github.repository }}"
+          BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+
+          # 计算 sha256
+          HASH_X64=$(sha256sum winload-windows-x86_64.exe | awk '{print $1}')
+          HASH_ARM64=$(sha256sum winload-windows-aarch64.exe | awk '{print $1}')
+
+          echo "📦 Version: $SCOOP_VERSION"
+          echo "🔑 x64 hash: $HASH_X64"
+          echo "🔑 arm64 hash: $HASH_ARM64"
+
+          cat > winload.json << EOF
+          {
+              "version": "${SCOOP_VERSION}",
+              "description": "Network Load Monitor - nload for Windows/Linux/macOS",
+              "homepage": "https://github.com/${REPO}",
+              "license": "MIT",
+              "architecture": {
+                  "64bit": {
+                      "url": "${BASE_URL}/winload-windows-x86_64-${VERSION}.exe",
+                      "hash": "${HASH_X64}",
+                      "bin": [["winload-windows-x86_64-${VERSION}.exe", "winload"]]
+                  },
+                  "arm64": {
+                      "url": "${BASE_URL}/winload-windows-aarch64-${VERSION}.exe",
+                      "hash": "${HASH_ARM64}",
+                      "bin": [["winload-windows-aarch64-${VERSION}.exe", "winload"]]
+                  }
+              },
+              "checkver": {
+                  "github": "https://github.com/${REPO}"
+              },
+              "autoupdate": {
+                  "architecture": {
+                      "64bit": {
+                          "url": "https://github.com/${REPO}/releases/download/v\$version/winload-windows-x86_64-v\$version.exe"
+                      },
+                      "arm64": {
+                          "url": "https://github.com/${REPO}/releases/download/v\$version/winload-windows-aarch64-v\$version.exe"
+                      }
+                  }
+              }
+          }
+          EOF
+
+          echo "📝 Generated winload.json:"
+          cat winload.json
+
+      - name: Push to scoop-bucket repo
+        env:
+          SCOOP_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+
+          git clone https://x-access-token:${SCOOP_TOKEN}@github.com/VincentZyuApps/scoop-bucket.git scoop-repo
+          cp winload.json scoop-repo/bucket/winload.json
+
+          cd scoop-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bucket/winload.json
+          git commit -m "🍺 Update winload to ${VERSION}" || echo "No changes to commit"
+          git push
+
+          echo "✅ Scoop bucket updated!"
