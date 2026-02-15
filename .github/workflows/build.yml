@@ -367,12 +367,12 @@ jobs:
                   "64bit": {
                       "url": "${BASE_URL}/winload-windows-x86_64-${VERSION}.exe",
                       "hash": "${HASH_X64}",
-                      "bin": [["winload-windows-x86_64-${VERSION}.exe", "winload"]]
+                      "bin": [["winload-windows-x86_64-${VERSION}.exe", "win-nload"]]
                   },
                   "arm64": {
                       "url": "${BASE_URL}/winload-windows-aarch64-${VERSION}.exe",
                       "hash": "${HASH_ARM64}",
-                      "bin": [["winload-windows-aarch64-${VERSION}.exe", "winload"]]
+                      "bin": [["winload-windows-aarch64-${VERSION}.exe", "win-nload"]]
                   }
               },
               "checkver": {
