@@ -200,34 +200,44 @@ jobs:
 
       # Linux targets: 额外构建 DEB + RPM 包
       - name: Build DEB & RPM packages
-        if: runner.os == 'Linux' && !contains(matrix.target, 'musl') == false || contains(matrix.target, 'linux')
+        if: contains(matrix.target, 'linux')
         shell: bash
         working-directory: rust
         run: |
-          if [[ "${{ matrix.target }}" != *linux* ]]; then
-            echo "⏭️ Skipping: not a Linux target"
-            exit 0
-          fi
+          VERSION="${{ needs.check.outputs.version }}"
+
           echo "📦 Building DEB package for ${{ matrix.target }}..."
           cargo deb --target ${{ matrix.target }} --no-build
           echo "📦 Building RPM package for ${{ matrix.target }}..."
           cargo generate-rpm --target ${{ matrix.target }}
-          echo "✅ Packages built:"
+
+          echo "✅ Packages built (original names):"
           find target -name '*.deb' -o -name '*.rpm' | head -20
+
+          # 重命名为统一格式: winload-linux-<arch>-<version>.deb / .rpm
+          mkdir -p renamed
+          for f in $(find target -name '*.deb'); do
+            cp "$f" "renamed/winload-${{ matrix.name }}-${VERSION}.deb"
+          done
+          for f in $(find target -name '*.rpm'); do
+            cp "$f" "renamed/winload-${{ matrix.name }}-${VERSION}.rpm"
+          done
+          echo "📦 Renamed packages:"
+          ls -lh renamed/
 
       - name: Upload DEB artifact
         if: contains(matrix.target, 'linux')
         uses: actions/upload-artifact@v4
         with:
-          name: deb-${{ matrix.name }}
-          path: rust/target/**/debian/*.deb
+          name: winload-${{ matrix.name }}-${{ needs.check.outputs.version }}.deb
+          path: rust/renamed/*.deb
 
       - name: Upload RPM artifact
         if: contains(matrix.target, 'linux')
         uses: actions/upload-artifact@v4
         with:
-          name: rpm-${{ matrix.name }}
-          path: rust/target/**/generate-rpm/*.rpm
+          name: winload-${{ matrix.name }}-${{ needs.check.outputs.version }}.rpm
+          path: rust/renamed/*.rpm
 
       - name: Prepare artifact
         shell: bash
@@ -295,8 +305,6 @@ jobs:
           VERSION="${{ needs.check.outputs.version }}"
           REPO="${{ github.repository }}"
           BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
-          PKG_VER="${VERSION#v}"
-          DEB_VER=$(echo "$PKG_VER" | sed 's/-/~/')
           
           # 查找上一个 release tag（排除当前版本）
           PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${VERSION}$" | head -1)
@@ -308,8 +316,8 @@ jobs:
             echo ""
             echo "| Arch | Windows | Linux | macOS |"
             echo "|------|---------|-------|-------|"
-            echo "| **x86_64** | [exe](${BASE_URL}/winload-windows-x86_64-${VERSION}.exe) | [binary](${BASE_URL}/winload-linux-x86_64-${VERSION}) · [deb](${BASE_URL}/winload_${DEB_VER}-1_amd64.deb) · [rpm](${BASE_URL}/winload-${PKG_VER}-1.x86_64.rpm) | [binary](${BASE_URL}/winload-macos-x86_64-${VERSION}) |"
-            echo "| **ARM64** | [exe](${BASE_URL}/winload-windows-aarch64-${VERSION}.exe) | [binary](${BASE_URL}/winload-linux-aarch64-${VERSION}) · [deb](${BASE_URL}/winload_${DEB_VER}-1_arm64.deb) · [rpm](${BASE_URL}/winload-${PKG_VER}-1.aarch64.rpm) | [binary](${BASE_URL}/winload-macos-aarch64-${VERSION}) |"
+            echo "| **x86_64** | [exe](${BASE_URL}/winload-windows-x86_64-${VERSION}.exe) | [binary](${BASE_URL}/winload-linux-x86_64-${VERSION}) · [deb](${BASE_URL}/winload-linux-x86_64-${VERSION}.deb) · [rpm](${BASE_URL}/winload-linux-x86_64-${VERSION}.rpm) | [binary](${BASE_URL}/winload-macos-x86_64-${VERSION}) |"
+            echo "| **ARM64** | [exe](${BASE_URL}/winload-windows-aarch64-${VERSION}.exe) | [binary](${BASE_URL}/winload-linux-aarch64-${VERSION}) · [deb](${BASE_URL}/winload-linux-aarch64-${VERSION}.deb) · [rpm](${BASE_URL}/winload-linux-aarch64-${VERSION}.rpm) | [binary](${BASE_URL}/winload-macos-aarch64-${VERSION}) |"
             echo ""
             echo "**Quick install (Debian/Ubuntu/Fedora and derivatives):**"
             echo '```bash'
@@ -356,9 +364,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           VERSION="${{ needs.check.outputs.version }}"
-          # 收集所有要上传的文件（二进制 + DEB + RPM）
-          shopt -s globstar nullglob
-          FILES=(winload-*-${VERSION}* *.deb *.rpm)
+          # 收集所有要上传的文件（二进制 + DEB + RPM，统一 winload-*-VERSION* 格式）
+          shopt -s nullglob
+          FILES=(winload-*-${VERSION}*)
           echo "📤 Uploading ${#FILES[@]} files:"
           printf '  - %s\n' "${FILES[@]}"
           gh release create "$VERSION" \
