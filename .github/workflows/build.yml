@@ -411,3 +411,166 @@ jobs:
           git push
 
           echo "✅ Scoop bucket updated!"
+
+  # ── 构建并上传 DEB 包（x86_64 + ARM64）──────────────────
+  publish-deb:
+    name: Build & Upload DEB Packages
+    needs: [check, release]
+    if: always() && needs.check.outputs.should_publish == 'true' && (needs.release.result == 'success' || needs.release.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-musl,aarch64-unknown-linux-gnu
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools gcc-aarch64-linux-gnu
+          cargo install cargo-deb
+
+      - name: Build x86_64 binary (musl)
+        working-directory: rust
+        run: cargo build --release --target x86_64-unknown-linux-musl
+
+      - name: Build ARM64 binary (cross-compile)
+        working-directory: rust
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+        run: cargo build --release --target aarch64-unknown-linux-gnu
+
+      - name: Build DEB packages (both architectures)
+        working-directory: rust
+        run: |
+          cargo deb --target x86_64-unknown-linux-musl --no-build
+          cargo deb --target aarch64-unknown-linux-gnu --no-build
+          echo "📦 DEB packages built:"
+          ls -lh target/x86_64-unknown-linux-musl/debian/*.deb
+          ls -lh target/aarch64-unknown-linux-gnu/debian/*.deb
+
+      - name: Upload DEBs to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          for deb in rust/target/*/debian/*.deb; do
+            echo "📤 Uploading: $deb"
+            gh release upload "$VERSION" "$deb" --clobber
+          done
+          echo "✅ DEB packages uploaded to release ${VERSION}!"
+
+  # ── 更新 AUR 包（x86_64 + aarch64）────────────────────
+  publish-aur:
+    name: Update AUR Package
+    needs: [check, release]
+    if: always() && needs.check.outputs.should_publish == 'true' && (needs.release.result == 'success' || needs.release.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Linux binaries from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          REPO="${{ github.repository }}"
+          BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+
+          echo "📥 Downloading x86_64 binary..."
+          curl -fSL -o winload-linux-x86_64 "${BASE_URL}/winload-linux-x86_64-${VERSION}"
+          SHA256_X86=$(sha256sum winload-linux-x86_64 | awk '{print $1}')
+          echo "🔑 x86_64 SHA256: $SHA256_X86"
+          echo "SHA256_X86=$SHA256_X86" >> "$GITHUB_ENV"
+
+          echo "📥 Downloading aarch64 binary..."
+          curl -fSL -o winload-linux-aarch64 "${BASE_URL}/winload-linux-aarch64-${VERSION}"
+          SHA256_ARM=$(sha256sum winload-linux-aarch64 | awk '{print $1}')
+          echo "🔑 aarch64 SHA256: $SHA256_ARM"
+          echo "SHA256_ARM=$SHA256_ARM" >> "$GITHUB_ENV"
+
+      - name: Generate PKGBUILD
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          PKGVER="${VERSION#v}"
+
+          cat > PKGBUILD << HEREDOC_END
+          # Maintainer: VincentZyu <vincentzyu233@gmail.com>
+          pkgname=winload-bin
+          pkgver=${PKGVER}
+          pkgrel=1
+          pkgdesc="A lightweight, real-time CLI tool for monitoring network bandwidth and traffic"
+          arch=('x86_64' 'aarch64')
+          url="https://github.com/VincentZyu233/winload"
+          license=('MIT')
+          provides=('winload')
+          conflicts=('winload')
+          _base_url="https://github.com/VincentZyu233/winload/releases/download/v\${pkgver}"
+          source_x86_64=("winload-linux-x86_64-v\${pkgver}::\${_base_url}/winload-linux-x86_64-v\${pkgver}")
+          source_aarch64=("winload-linux-aarch64-v\${pkgver}::\${_base_url}/winload-linux-aarch64-v\${pkgver}")
+          noextract=("winload-linux-x86_64-v\${pkgver}" "winload-linux-aarch64-v\${pkgver}")
+          sha256sums_x86_64=('${SHA256_X86}')
+          sha256sums_aarch64=('${SHA256_ARM}')
+
+          package() {
+              if [[ "\$CARCH" == "x86_64" ]]; then
+                  install -Dm755 "\$srcdir/winload-linux-x86_64-v\${pkgver}" "\$pkgdir/usr/bin/winload"
+              elif [[ "\$CARCH" == "aarch64" ]]; then
+                  install -Dm755 "\$srcdir/winload-linux-aarch64-v\${pkgver}" "\$pkgdir/usr/bin/winload"
+              fi
+          }
+          HEREDOC_END
+
+          # Remove leading whitespace (heredoc indentation)
+          sed -i 's/^          //' PKGBUILD
+
+          echo "📝 Generated PKGBUILD:"
+          cat PKGBUILD
+
+      - name: Generate .SRCINFO
+        uses: docker://archlinux:latest
+        with:
+          args: bash -c "pacman -Sy --noconfirm pacman-contrib base-devel && useradd -m builder && cp PKGBUILD /home/builder/ && cd /home/builder && sudo -u builder makepkg --printsrcinfo > .SRCINFO && cp .SRCINFO /github/workspace/"
+
+      - name: Push to AUR
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          VERSION="${{ needs.check.outputs.version }}"
+          PKGVER="${VERSION#v}"
+
+          # Setup SSH for AUR
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_KEY" > ~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          cat >> ~/.ssh/config << 'SSHEOF'
+          Host aur.archlinux.org
+              IdentityFile ~/.ssh/aur
+              User aur
+              StrictHostKeyChecking no
+          SSHEOF
+
+          # Clone AUR repo
+          git clone ssh://aur@aur.archlinux.org/winload-bin.git aur-repo || {
+            echo "⚠️ AUR repo doesn't exist yet. Please create it manually first."
+            echo "   Run: ssh aur@aur.archlinux.org setup-repo winload-bin"
+            exit 1
+          }
+
+          # Copy files
+          cp PKGBUILD aur-repo/
+          cp .SRCINFO aur-repo/ 2>/dev/null || true
+
+          # Commit and push
+          cd aur-repo
+          git config user.name "VincentZyu"
+          git config user.email "vincentzyu233@gmail.com"
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to ${PKGVER}" || echo "No changes to commit"
+          git push
+
+          echo "✅ AUR package updated!"

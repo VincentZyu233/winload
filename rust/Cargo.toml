@@ -32,3 +32,22 @@ etw = ["windows-sys"]
 opt-level = 3
 lto = true
 strip = true
+
+[package.metadata.deb]
+maintainer = "VincentZyu <vincentzyu233@gmail.com>"
+copyright = "2025-2026, VincentZyu"
+extended-description = """\
+A lightweight, real-time CLI tool for monitoring \
+network bandwidth and traffic. Cross-platform \
+alternative to nload."""
+depends = ""
+section = "net"
+priority = "optional"
+assets = [
+    ["target/release/winload", "usr/bin/winload", "755"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/winload", dest = "/usr/bin/winload", mode = "755" },
+]
