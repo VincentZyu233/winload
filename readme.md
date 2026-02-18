@@ -1,6 +1,5 @@
 ![winload](https://socialify.git.ci/VincentZyu233/winload/image?custom_language=Rust&description=1&forks=1&issues=1&language=1&logo=https%3A%2F%2Favatars.githubusercontent.com%2Fu%2F250448479%3Fs%3D200%26v%3D4&name=1&owner=1&pulls=1&stargazers=1&theme=Auto)
 
-
 # Winload <img src="https://github.com/user-attachments/assets/62fec846-0442-47f6-bbba-78acdc8803ef" height="32px">
 
 > A lightweight, real-time CLI tool for monitoring network bandwidth and traffic, inspired by Linux's nload.
@@ -8,6 +7,8 @@
 > **[📖 English](readme.md)**
 > **[📖 简体中文(大陆)](readme.zh-cn.md)**
 > **[📖 繁體中文(台灣)](readme.zh-tw.md)**
+> **[📖 日本語](readme.jp.md)**
+> **[📖 한국어](readme.ko.md)**
 
 [![Windows x64 | ARM64](https://img.shields.io/badge/Windows-x64_|_ARM64-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/VincentZyu233/winload/releases)
 [![Linux x64 | ARM64](https://img.shields.io/badge/Linux-x64_|_ARM64-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/VincentZyu233/winload/releases)
