@@ -45,20 +45,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
         { false }
     };
 
-    // 使用 --etw 时在 loopback 设备上显示计数器为 0 的警告
-    let show_etw_warning = {
-        #[cfg(target_os = "windows")]
-        {
-            app.loopback_mode == LoopbackMode::Etw
-                && app.current_view()
-                    .map(|v| v.info.name.to_lowercase().contains("loopback"))
-                    .unwrap_or(false)
-        }
-        #[cfg(not(target_os = "windows"))]
-        { false }
-    };
-
-    // 使用 --npcap 或 --etw 时，在 loopback 设备上显示捕获信息
+    // 使用 --npcap 时，在 loopback 设备上显示捕获信息
     let show_loopback_info = app.loopback_info.is_some()
         && app.current_view()
             .map(|v| v.info.name.to_lowercase().contains("loopback"))
@@ -69,7 +56,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     // - +1 if there are warnings/info
     // - +1 if separator is not hidden
     let mut header_height = 1; // device line
-    if show_loopback_warning || show_etw_warning || show_loopback_info {
+    if show_loopback_warning || show_loopback_info {
         header_height += 1; // warning/info line
     }
     if !app.hide_separator {
@@ -86,7 +73,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
         ])
         .split(area);
 
-    draw_header(frame, chunks[0], app, show_loopback_warning, show_etw_warning, show_loopback_info);
+    draw_header(frame, chunks[0], app, show_loopback_warning, show_loopback_info);
     draw_panels(frame, chunks[1], app);
     draw_help(frame, chunks[2], app.emoji, app.bar_style, app.no_color);
 }
@@ -103,7 +90,7 @@ fn pad_to_width(text: &str, width: usize) -> String {
     }
 }
 
-fn draw_header(frame: &mut Frame, area: Rect, app: &App, show_loopback_warning: bool, show_etw_warning: bool, show_loopback_info: bool) {
+fn draw_header(frame: &mut Frame, area: Rect, app: &App, show_loopback_warning: bool, show_loopback_info: bool) {
     if let Some(view) = app.current_view() {
         let addr_str = if !view.info.addrs.is_empty() {
             format!(" [{}]", view.info.addrs[0])
@@ -119,7 +106,6 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App, show_loopback_warning: 
             {
                 match app.loopback_mode {
                     LoopbackMode::Npcap => " [npcap]",
-                    LoopbackMode::Etw => " [etw]",
                     LoopbackMode::None => "",
                 }
             }
@@ -176,7 +162,7 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App, show_loopback_warning: 
         let mut lines = vec![header];
         
         if show_loopback_warning {
-            let warn_text = " \u{26a0} Loopback: use --npcap (npcap.com) or --etw";
+            let warn_text = " \u{26a0} Loopback: use --npcap (npcap.com)";
             let warn_style = maybe_strip(match app.bar_style {
                 BarStyle::Fill => Style::default().bg(Color::Red).fg(Color::White),
                 BarStyle::Color => Style::default().bg(Color::Red).fg(Color::White),
@@ -188,25 +174,6 @@ fn draw_header(frame: &mut Frame, area: Rect, app: &App, show_loopback_warning: 
                 warn_text.to_string()
             };
             lines.push(Line::from(Span::styled(warn_display, warn_style)));
-        }
-
-        if show_etw_warning {
-            let etw_text = if app.emoji {
-                " ⚠️ ETW: 大多数 Windows loopback 计数器为 0，建议使用 --npcap (npcap.com)"
-            } else {
-                " \u{26a0} ETW: loopback counters are 0 on most Windows, try --npcap (npcap.com)"
-            };
-            let etw_style = maybe_strip(match app.bar_style {
-                BarStyle::Fill => Style::default().bg(Color::Yellow).fg(Color::Black),
-                BarStyle::Color => Style::default().bg(Color::Yellow).fg(Color::Black),
-                BarStyle::Plain => Style::default().fg(Color::Yellow),
-            }, app.no_color);
-            let etw_display = if app.bar_style == BarStyle::Fill {
-                pad_to_width(etw_text, width)
-            } else {
-                etw_text.to_string()
-            };
-            lines.push(Line::from(Span::styled(etw_display, etw_style)));
         }
 
         if show_loopback_info {
