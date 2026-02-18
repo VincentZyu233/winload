@@ -36,10 +36,12 @@ scoop install winload
 
 ### Linux (一键安装脚本)
 > 支持 Debian/Ubuntu 及其下游 —— Linux Mint、Pop!_OS、Deepin、统信 UOS 等 (apt)
+
 > 支持 Fedora/RHEL 及其下游 —— Rocky Linux、AlmaLinux、CentOS Stream 等 (dnf)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/VincentZyuApps/winload/main/docs/install_scripts/install.sh | bash
 ```
+> 📄 [查看安装脚本源码](https://github.com/VincentZyuApps/winload/blob/main/docs/install_scripts/install.sh)
 
 <details>
 <summary>手动安装 / 其他平台</summary>
@@ -47,7 +49,9 @@ curl -fsSL https://raw.githubusercontent.com/VincentZyuApps/winload/main/docs/in
 **DEB (Debian/Ubuntu):**
 ```bash
 # 从 GitHub Releases 下载最新 .deb 包
-sudo dpkg -i winload_*_amd64.deb
+sudo dpkg -i ./winload_*_amd64.deb
+# 或使用 apt（自动处理依赖）
+sudo apt install ./winload_*_amd64.deb
 ```
 
 **RPM (Fedora/RHEL):**

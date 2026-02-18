@@ -36,10 +36,12 @@ scoop install winload
 
 ### Linux (one-liner)
 > Supports Debian/Ubuntu and derivatives — Linux Mint, Pop!_OS, Deepin, UOS, etc. (apt)
+
 > Supports Fedora/RHEL and derivatives — Rocky Linux, AlmaLinux, CentOS Stream, etc. (dnf)
 ```bash
 curl -fsSL https://raw.githubusercontent.com/VincentZyuApps/winload/main/docs/install_scripts/install.sh | bash
 ```
+> 📄 [View install script source](https://github.com/VincentZyuApps/winload/blob/main/docs/install_scripts/install.sh)
 
 <details>
 <summary>Manual install / Other platforms</summary>
@@ -47,7 +49,9 @@ curl -fsSL https://raw.githubusercontent.com/VincentZyuApps/winload/main/docs/in
 **DEB (Debian/Ubuntu):**
 ```bash
 # Download the latest .deb from GitHub Releases
-sudo dpkg -i winload_*_amd64.deb
+sudo dpkg -i ./winload_*_amd64.deb
+# or use apt (auto-resolves dependencies)
+sudo apt install ./winload_*_amd64.deb
 ```
 
 **RPM (Fedora/RHEL):**
