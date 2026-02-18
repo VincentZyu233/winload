@@ -1,7 +1,8 @@
 # 构建与发布工作流
 
 > **[📖 English](build.md)**
-> **[📖 繁體中文（中國台灣）](bulid.zh-tw.md)**
+> **[📖 简体中文(大陆)](build.zh-cn.md)**
+> **[📖 繁體中文(台灣)](bulid.zh-tw.md)**
 
 ## 📋 概述
 

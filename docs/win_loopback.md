@@ -1,7 +1,8 @@
 # Windows Loopback Traffic Monitoring: Why ETW Fails and Npcap Works
 
-> **[📖 中文版](win_loopback.zh-cn.md)**
-> **[📖 中文版(Traditional Chinese)](win_loopback.zh-tw.md)**
+> **[📖 English](win_loopback.md)**
+> **[📖 简体中文(大陆)](win_loopback.zh-cn.md)**
+> **[📖 繁體中文(台灣)](win_loopback.zh-tw.md)**
 
 ## TL;DR
 

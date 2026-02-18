@@ -6,7 +6,8 @@
 > 輕量級實時終端網路流量監控工具，靈感來自 Linux 的 nload。
 
 > **[📖 English](readme.md)**
-> **[📖 简体中文](readme.zh-cn.md)**
+> **[📖 简体中文(大陆)](readme.zh-cn.md)**
+> **[📖 繁體中文(台灣)](readme.zh-tw.md)**
 
 [![Windows x64 | ARM64](https://img.shields.io/badge/Windows-x64_|_ARM64-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/VincentZyu233/winload/releases)
 [![Linux x64 | ARM64](https://img.shields.io/badge/Linux-x64_|_ARM64-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/VincentZyu233/winload/releases)

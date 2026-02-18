@@ -5,8 +5,9 @@
 
 > A lightweight, real-time CLI tool for monitoring network bandwidth and traffic, inspired by Linux's nload.
 
-> **[📖 中文文档](readme.zh-cn.md)**
-> **[📖 繁體中文(中國台灣)](readme.zh-tw.md)**
+> **[📖 English](readme.md)**
+> **[📖 简体中文(大陆)](readme.zh-cn.md)**
+> **[📖 繁體中文(台灣)](readme.zh-tw.md)**
 
 [![Windows x64 | ARM64](https://img.shields.io/badge/Windows-x64_|_ARM64-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/VincentZyu233/winload/releases)
 [![Linux x64 | ARM64](https://img.shields.io/badge/Linux-x64_|_ARM64-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/VincentZyu233/winload/releases)
