@@ -100,7 +100,7 @@ winload --npcap      # 擷取 127.0.0.1 回環流量 (Windows，需安裝 Npcap)
 | `-n`, `--no-graph` | 隱藏圖形，僅顯示統計資訊 | 關閉 |
 | `--hide-separator` | 隱藏分隔線（等號一行） | 關閉 |
 | `--no-color` | 停用所有 TUI 顏色（單色模式） | 關閉 |
-| `--npcap` | **[Windows Only]** 透過 Npcap 擷取回環流量（建議） | 關閉 |
+| `--npcap` | **[Windows Rust Only]** 透過 Npcap 擷取回環流量（建議） | 關閉 |
 | `--debug-info` | **[Rust Only]** 列印網路介面除錯資訊後退出 | — |
 | `-h`, `--help` | 列印說明（`--help --emoji` 可查看 emoji 版！） | — |
 | `-V`, `--version` | **[Rust Only]** 列印版本號 | — |

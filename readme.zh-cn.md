@@ -104,7 +104,7 @@ winload --npcap      # 捕获 127.0.0.1 回环流量 (Windows，需安装 Npcap)
 | `-n`, `--no-graph` | 隐藏图形，仅显示统计信息 | 关闭 |
 | `--hide-separator` | 隐藏分隔线（等于号一行） | 关闭 |
 | `--no-color` | 禁用所有 TUI 颜色（单色模式） | 关闭 |
-| `--npcap` | **[Windows Only]** 通过 Npcap 捕获回环流量（推荐） | 关闭 |
+| `--npcap` | **[Windows Rust Only]** 通过 Npcap 捕获回环流量（推荐） | 关闭 |
 | `--debug-info` | **[Rust Only]** 打印网络接口调试信息后退出 | — |
 | `-h`, `--help` | 打印帮助（`--help --emoji` 可查看 emoji 版！） | — |
 | `-V`, `--version` | **[Rust Only]** 打印版本号 | — |

@@ -319,7 +319,7 @@ sudo dnf install https://github.com/VincentZyu233/winload/releases/download/v${V
 ### 3. AUR 包 (Arch Linux) ⭐
 
 这是一个 **预编译二进制包**（`-bin` 后缀），用户不需要在本地编译 Rust。
-手动发布先只发 x86_64，后续 CI 自动化时再加 aarch64 双架构支持。
+支持 **x86_64 + aarch64** 双架构（都用 musl 零依赖）。
 
 #### 前期准备（首次）
 
@@ -363,33 +363,48 @@ cd winload-bin
 # ============================================================
 VERSION="0.1.5"  # 替换为实际版本号
 
+# 下载 x86_64 版本并计算哈希
 wget "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-linux-x86_64-v${VERSION}"
 SHA256_X86=$(sha256sum "winload-linux-x86_64-v${VERSION}" | awk '{print $1}')
-echo "x86_64 SHA256: $SHA256_X86"
 rm "winload-linux-x86_64-v${VERSION}"
 
+# 下载 aarch64 版本并计算哈希
+wget "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-linux-aarch64-v${VERSION}"
+SHA256_AARCH64=$(sha256sum "winload-linux-aarch64-v${VERSION}" | awk '{print $1}')
+rm "winload-linux-aarch64-v${VERSION}"
+
+echo "x86_64 SHA256: $SHA256_X86"
+echo "aarch64 SHA256: $SHA256_AARCH64"
+
 # ============================================================
-# Step 3: 创建 PKGBUILD（先只支持 x86_64）
+# Step 3: 创建 PKGBUILD（双架构支持）
 # ============================================================
-# 💡 后续 CI 自动化会升级为 x86_64 + aarch64 双架构（都用 musl 零依赖）
 cat > PKGBUILD << EOF
 # Maintainer: VincentZyu <vincentzyu233@gmail.com>
 pkgname=winload-bin
 pkgver=${VERSION}
 pkgrel=1
 pkgdesc="A lightweight, real-time CLI tool for monitoring network bandwidth and traffic"
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 url="https://github.com/VincentZyu233/winload"
 license=('MIT')
 provides=('winload')
 conflicts=('winload')
 
-source=("winload-linux-x86_64-v\${pkgver}::https://github.com/VincentZyu233/winload/releases/download/v\${pkgver}/winload-linux-x86_64-v\${pkgver}")
-noextract=("winload-linux-x86_64-v\${pkgver}")
-sha256sums=('${SHA256_X86}')
+source_x86_64=("winload-linux-x86_64-v\${pkgver}::https://github.com/VincentZyu233/winload/releases/download/v\${pkgver}/winload-linux-x86_64-v\${pkgver}")
+source_aarch64=("winload-linux-aarch64-v\${pkgver}::https://github.com/VincentZyu233/winload/releases/download/v\${pkgver}/winload-linux-aarch64-v\${pkgver}")
+
+noextract=()
+
+sha256sums_x86_64=('${SHA256_X86}')
+sha256sums_aarch64=('${SHA256_AARCH64}')
 
 package() {
-    install -Dm755 "\$srcdir/winload-linux-x86_64-v\${pkgver}" "\$pkgdir/usr/bin/winload"
+    if [ "\$CARCH" = "x86_64" ]; then
+        install -Dm755 "\$srcdir/winload-linux-x86_64-v\${pkgver}" "\$pkgdir/usr/bin/winload"
+    elif [ "\$CARCH" = "aarch64" ]; then
+        install -Dm755 "\$srcdir/winload-linux-aarch64-v\${pkgver}" "\$pkgdir/usr/bin/winload"
+    fi
 }
 EOF
 
@@ -420,8 +435,11 @@ git push
 ```
 
 > 📌 **关键知识点**：
-> - `noextract=()` — 阻止 `makepkg` 尝试解压裸二进制（不是 tar.gz，不能解压！）
-> - `source=("filename::url")` — 用 `filename::url` 语法给下载文件重命名，避免版本间冲突
+> - `arch=('x86_64' 'aarch64')` — 支持双架构
+> - `source_x86_64=()` / `source_aarch64=()` — 分别指定不同架构的下载源
+> - `sha256sums_x86_64=()` / `sha256sums_aarch64=()` — 分别指定不同架构的哈希
+> - `noextract=()` — 裸二进制不需要解压
+> - `$CARCH` — makepkg 变量，值为 `x86_64` 或 `aarch64`
 > - `.SRCINFO` — AUR 用它来显示包信息，每次改 PKGBUILD 后**必须**重新生成
 
 #### 后续版本更新
@@ -431,12 +449,21 @@ cd winload-bin  # 之前 clone 的 AUR 仓库
 
 # 1. 更新版本号和哈希
 NEW_VERSION="0.2.0"
+
+# x86_64
 wget "https://github.com/VincentZyu233/winload/releases/download/v${NEW_VERSION}/winload-linux-x86_64-v${NEW_VERSION}"
-NEW_HASH=$(sha256sum "winload-linux-x86_64-v${NEW_VERSION}" | awk '{print $1}')
+NEW_SHA256_X86=$(sha256sum "winload-linux-x86_64-v${NEW_VERSION}" | awk '{print $1}')
 rm "winload-linux-x86_64-v${NEW_VERSION}"
 
+# aarch64
+wget "https://github.com/VincentZyu233/winload/releases/download/v${NEW_VERSION}/winload-linux-aarch64-v${NEW_VERSION}"
+NEW_SHA256_AARCH64=$(sha256sum "winload-linux-aarch64-v${NEW_VERSION}" | awk '{print $1}')
+rm "winload-linux-aarch64-v${NEW_VERSION}"
+
+# 更新 PKGBUILD
 sed -i "s/^pkgver=.*/pkgver=${NEW_VERSION}/" PKGBUILD
-sed -i "s/^sha256sums=.*/sha256sums=('${NEW_HASH}')/" PKGBUILD
+sed -i "s/^sha256sums_x86_64=.*/sha256sums_x86_64=('${NEW_SHA256_X86}')/" PKGBUILD
+sed -i "s/^sha256sums_aarch64=.*/sha256sums_aarch64=('${NEW_SHA256_AARCH64}')/" PKGBUILD
 
 # 2. 重新生成 .SRCINFO
 makepkg --printsrcinfo > .SRCINFO
@@ -456,6 +483,7 @@ git push
 | `.SRCINFO` 忘记更新 | AUR 用 `.SRCINFO` 显示包信息 | 每次改 PKGBUILD 后必须重新生成 |
 | SSH 权限拒绝 | 公钥未添加到 AUR 账号 | 检查 `~/.ssh/config` 和 AUR 设置 |
 | WSL 上 `makepkg` 报错 | WSL 不自带 `makepkg` | 需要 `sudo apt install makepkg` 或用 Arch Docker 测试 |
+| 双架构打包失败 | 缺少某个架构的哈希 | 确保 `sha256sums_x86_64` 和 `sha256sums_aarch64` 都填了 |
 
 #### 用户安装方式
 
@@ -495,6 +523,8 @@ cargo build --release --target x86_64-unknown-linux-musl
 
 ### Homebrew ⭐
 
+支持 **x86_64 + ARM64 (Apple Silicon)** 双架构。
+
 #### 前期准备（首次）
 ```bash
 gh repo create homebrew-tap --public
@@ -504,28 +534,94 @@ mkdir -p Formula
 ```
 
 #### 创建/更新 Formula
+
 ```bash
 cd Formula
+
+# ============================================================
+# Step 1: 获取各平台的 SHA256 哈希
+# ============================================================
+VERSION="0.1.5"  # 替换为实际版本号
+
+# macOS x86_64
+curl -sL "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-macos-x86_64-v${VERSION}" -o winload-macos-x86_64
+SHA256_X86=$(sha256sum winload-macos-x86_64 | awk '{print $1}')
+rm winload-macos-x86_64
+
+# macOS ARM64 (aarch64)
+curl -sL "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-macos-aarch64-v${VERSION}" -o winload-macos-aarch64
+SHA256_AARCH64=$(sha256sum winload-macos-aarch64 | awk '{print $1}')
+rm winload-macos-aarch64
+
+# Linux x86_64（可选，Homebrew 也支持 Linux）
+curl -sL "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-linux-x86_64-v${VERSION}" -o winload-linux-x86_64
+SHA256_LINUX=$(sha256sum winload-linux-x86_64 | awk '{print $1}')
+rm winload-linux-x86_64
+
+echo "macOS x86_64 SHA256: $SHA256_X86"
+echo "macOS ARM64 SHA256: $SHA256_AARCH64"
+echo "Linux x86_64 SHA256: $SHA256_LINUX"
+
+# ============================================================
+# Step 2: 创建/更新 Formula
+# ============================================================
 cat > winload.rb <<'RUBY'
 class Winload < Formula
   desc "Network Load Monitor - nload for Windows/Linux/macOS"
   homepage "https://github.com/VincentZyu233/winload"
-  version "${VERSION}"  # 替换为实际版本
+  version "VERSION"  # 替换为实际版本号，如 0.1.5
   license "MIT"
 
   on_macos do
     if Hardware::CPU.arm?
-      url "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-macos-aarch64-v${VERSION}"
-      sha256 "<ARM64 哈希>"
+      url "https://github.com/VincentZyu233/winload/releases/download/vVERSION/winload-macos-aarch64-vVERSION"
+      sha256 "SHA256_AARCH64"  # 替换为 ARM64 哈希
     else
-      url "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-macos-x86_64-v${VERSION}"
-      sha256 "<x86_64 哈希>"
+      url "https://github.com/VincentZyu233/winload/releases/download/vVERSION/winload-macos-x86_64-vVERSION"
+      sha256 "SHA256_X86"  # 替换为 x86_64 哈希
     end
   end
 
   on_linux do
-    url "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-linux-x86_64-v${VERSION}"
-    sha256 "<Linux x86_64 哈希>"
+    url "https://github.com/VincentZyu233/winload/releases/download/vVERSION/winload-linux-x86_64-vVERSION"
+    sha256 "SHA256_LINUX"  # 替换为 Linux x86_64 哈希
+  end
+
+  def install
+    binary_name = Dir.glob("winload-*").first
+    bin.install binary_name => "winload"
+  end
+
+  test do
+    system "#{bin}/winload", "--version"
+  end
+end
+RUBY
+
+# ============================================================
+# Step 3: 实际替换占位符（推荐方式：直接写死版本和哈希）
+# ============================================================
+# 为简化维护，推荐直接写死版本号和哈希，而不是用变量
+cat > winload.rb <<'RUBY'
+class Winload < Formula
+  desc "Network Load Monitor - nload for Windows/Linux/macOS"
+  homepage "https://github.com/VincentZyu233/winload"
+  version "0.1.5"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/VincentZyu233/winload/releases/download/v0.1.5/winload-macos-aarch64-v0.1.5"
+      sha256 "a1b2c3d4e5f6..."  # 替换为实际 ARM64 哈希
+    else
+      url "https://github.com/VincentZyu233/winload/releases/download/v0.1.5/winload-macos-x86_64-v0.1.5"
+      sha256 "f6e5d4c3b2a1..."  # 替换为实际 x86_64 哈希
+    end
+  end
+
+  on_linux do
+    url "https://github.com/VincentZyu233/winload/releases/download/v0.1.5/winload-linux-x86_64-v0.1.5"
+    sha256 "1234567890ab..."  # 替换为实际 Linux 哈希
   end
 
   def install
@@ -542,9 +638,79 @@ RUBY
 
 ```bash
 git add Formula/winload.rb
+git commit -m "winload: Update to v0.1.5"
+git push
+```
+
+#### 后续版本更新
+
+```bash
+cd homebrew-tap/Formula
+
+VERSION="0.2.0"  # 新版本号
+
+# 重新获取哈希
+curl -sL "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-macos-x86_64-v${VERSION}" -o winload-macos-x86_64
+SHA256_X86=$(sha256sum winload-macos-x86_64 | awk '{print $1}')
+rm winload-macos-x86_64
+
+curl -sL "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-macos-aarch64-v${VERSION}" -o winload-macos-aarch64
+SHA256_AARCH64=$(sha256sum winload-macos-aarch64 | awk '{print $1}')
+rm winload-macos-aarch64
+
+curl -sL "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-linux-x86_64-v${VERSION}" -o winload-linux-x86_64
+SHA256_LINUX=$(sha256sum winload-linux-x86_64 | awk '{print $1}')
+rm winload-linux-x86_64
+
+# 更新 Formula（用 sed 替换版本号和哈希）
+sed -i 's/version ".*"/version "'${VERSION}'"/' winload.rb
+
+# 重新创建整个文件更简单
+cat > winload.rb <<'RUBY'
+class Winload < Formula
+  desc "Network Load Monitor - nload for Windows/Linux/macOS"
+  homepage "https://github.com/VincentZyu233/winload"
+  version "${VERSION}"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-macos-aarch64-v${VERSION}"
+      sha256 "${SHA256_AARCH64}"
+    else
+      url "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-macos-x86_64-v${VERSION}"
+      sha256 "${SHA256_X86}"
+    end
+  end
+
+  on_linux do
+    url "https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-linux-x86_64-v${VERSION}"
+    sha256 "${SHA256_LINUX}"
+  end
+
+  def install
+    binary_name = Dir.glob("winload-*").first
+    bin.install binary_name => "winload"
+  end
+
+  test do
+    system "#{bin}/winload", "--version"
+  end
+end
+RUBY
+
+git add Formula/winload.rb
 git commit -m "winload: Update to v${VERSION}"
 git push
 ```
+
+#### ⚠️ 常见坑
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| `Error: SHA256 mismatch` | 哈希值不正确 | 重新用 `sha256sum` 计算 |
+| `No matching binary found` | URL 或文件名错误 | 检查 GitHub Release 中的实际文件名 |
+| `on_linux do` 不生效 | Homebrew Linux 版本语法 | 确保是 Homebrew 4.0+ |
 
 #### 用户安装方式
 ```bash
