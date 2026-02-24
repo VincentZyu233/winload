@@ -68,14 +68,15 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="winload",
         description="Network Load Monitor — nload-like TUI tool for Windows/Linux/macOS",
+        formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
         "-t",
         "--interval",
         type=int,
         default=500,
-        metavar="MS",
-        help="Refresh interval in milliseconds [default: 500]",
+        metavar="INTERVAL",
+        help="Refresh interval in milliseconds\n刷新间隔（毫秒）\n\n[default: 500]",
     )
     parser.add_argument(
         "-a",
@@ -83,7 +84,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=300,
         metavar="SEC",
-        help="Average window in seconds [default: 300]",
+        help="Average window in seconds\n平均值计算窗口（秒）\n\n[default: 300]",
     )
     parser.add_argument(
         "-d",
@@ -91,14 +92,14 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         metavar="NAME",
-        help="Default device name (partial match)",
+        help="Default device name (partial match)\n默认网卡名称（支持部分匹配）",
     )
     parser.add_argument(
         "-e",
         "--emoji",
         action="store_true",
         default=False,
-        help="Enable emoji decorations in TUI 🎉",
+        help="Enable emoji decorations in TUI 🎉\n启用 emoji 装饰模式 🎉",
     )
     parser.add_argument(
         "-u",
@@ -106,7 +107,7 @@ def parse_args() -> argparse.Namespace:
         type=str,
         choices=["bit", "byte"],
         default="bit",
-        help="Display unit: bit (default) or byte",
+        help="Display unit: bit (default) or byte\n显示单位：bit（默认）或 byte",
     )
     parser.add_argument(
         "-m",
@@ -114,21 +115,24 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=None,
         metavar="VALUE",
-        help="Fixed graph Y-axis max (e.g. 100M, 1G, 500K) [default: auto-scale]",
+        help="Fixed graph Y-axis max (e.g. 100M, 1G, 500K)\n"
+        "固定图形 Y 轴最大值（如 100M、1G、500K）\n\n"
+        "[default: auto-scale]",
     )
     parser.add_argument(
         "-n",
         "--no-graph",
         action="store_true",
         default=False,
-        help="Hide traffic graphs, show only statistics",
+        help="Hide traffic graphs, show only statistics\n隐藏流量图形，仅显示统计信息",
     )
     parser.add_argument(
         "-U",
         "--unicode",
         action="store_true",
         default=False,
-        help="Use Unicode block characters for graph (█▓░· instead of #|..)",
+        help="Use Unicode block characters for graph (█▓░· instead of #|..)\n"
+        "使用 Unicode 块字符绘制图形（█▓░· 代替 #|..）",
     )
     parser.add_argument(
         "-b",
@@ -136,34 +140,40 @@ def parse_args() -> argparse.Namespace:
         type=str,
         choices=["fill", "color", "plain"],
         default="fill",
-        help="Bar style: fill (default), color, plain",
+        help="Bar style: fill (default), color, plain\n"
+        "状态栏样式：fill（默认），color，plain",
     )
     parser.add_argument(
         "--in-color",
         type=parse_hex_color,
         default=None,
         metavar="HEX",
-        help="Incoming (download) graph color, hex RGB (e.g. 0x00d7ff) [default: cyan]",
+        help="Incoming (download) graph color, hex RGB (e.g. 0x00d7ff)\n"
+        "入站（下载）图形颜色，十六进制 RGB（如 0x00d7ff）\n\n"
+        "[default: cyan]",
     )
     parser.add_argument(
         "--out-color",
         type=parse_hex_color,
         default=None,
         metavar="HEX",
-        help="Outgoing (upload) graph color, hex RGB (e.g. 0xffaf00) [default: gold]",
+        help="Outgoing (upload) graph color, hex RGB (e.g. 0xffaf00)\n"
+        "出站（上传）图形颜色，十六进制 RGB（如 0xffaf00）\n\n"
+        "[default: gold]",
     )
     parser.add_argument(
         "--hide-separator",
         action="store_true",
         default=False,
-        help="Hide separator line (the row of equals signs between header and panels)",
+        help="Hide separator line (the row of equals signs between header and panels)\n"
+        "隐藏分隔线（标题和面板之间的等号行）",
     )
     parser.add_argument(
         "-V",
         "--version",
         action="version",
         version=f"winload {get_version()} (Python edition)",
-        help="Print version",
+        help="Print version\n打印版本号",
     )
     parser.add_argument(
         "--no-color",

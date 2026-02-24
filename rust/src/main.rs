@@ -361,62 +361,6 @@ fn run(terminal: &mut ratatui::DefaultTerminal, args: Args) -> io::Result<()> {
 
 // ─── 入口 ──────────────────────────────────────────────────
 
-/// 检查是否同时传入了 --help 和 --emoji，如果是则输出带 emoji 的帮助文本
-fn maybe_print_emoji_help() {
-    let raw: Vec<String> = std::env::args().collect();
-    let has_help = raw.iter().any(|a| a == "--help" || a == "-h");
-    let has_emoji = raw.iter().any(|a| a == "--emoji" || a == "-e");
-    if !(has_help && has_emoji) {
-        return;
-    }
-
-    let ver = env!("CARGO_PKG_VERSION");
-    print!(
-        r#"🖧✨ winload v{ver} — Network Load Monitor 🌐📡
-nload-like TUI tool for Windows/Linux/macOS
-
-🚀 Usage: winload [OPTIONS]
-
-⚙️  Options:
-  -t, --interval <MS>       ⏱️  Refresh interval in milliseconds [default: 500]
-  -a, --average <SECS>      📊 Average window in seconds [default: 300]
-  -d, --device <NAME>       🖧  Default device name (partial match)
-      --debug-info           🔍 Print debug info about network interfaces and exit
-  -e, --emoji                😀 Enable emoji decorations in TUI and output
-  -U, --unicode              █▓ Use Unicode block characters for graph
-  -u, --unit <bit|byte>      📐 Display unit: bit (default) or byte
-  -b, --bar-style <STYLE>    🎨 Bar style: fill (default), color, plain
-      --in-color <HEX>       ⬇️  Incoming graph color, hex RGB (e.g. 0x00d7ff)
-      --out-color <HEX>      ⬆️  Outgoing graph color, hex RGB (e.g. 0xffaf00)
-  -m, --max <VALUE>          📏 Fixed graph Y-axis max (e.g. 100M, 1G). Default: auto
-  -n, --no-graph             📋 Hide traffic graphs, show only statistics
-      --no-color               🎨 Disable all TUI colors (monochrome mode)
-
-🪟 Windows Loopback:
-      --npcap                🟢 Use Npcap to capture loopback traffic (recommended)
-                             📥 Download Npcap: https://npcap.com/#download
-
-  💬 Why? Windows loopback is short-circuited in tcpip.sys, bypassing NDIS,
-     so counters stay 0. Npcap uses a WFP callout to intercept before the short-circuit.
-  📖 Learn more: https://github.com/VincentZyuApps/winload/blob/main/docs/win_loopback.md
-
-⌨️  Keybindings:
-  ⬅️/➡️ or ⬆️/⬇️              Switch network device
-  c                         🎨 Toggle color on/off
-  q / Esc                   🚪 Quit
-
-💡 Examples:
-  winload                   Monitor all active interfaces
-  winload -t 200 -e         200ms refresh with emoji
-  winload -d Wi-Fi          Start on Wi-Fi adapter
-  winload --npcap           Capture 127.0.0.1 loopback traffic (Windows)
-
-🎉 Happy monitoring! 🐛
-"#
-    );
-    std::process::exit(0);
-}
-
 fn main() -> io::Result<()> {
     let args = Args::parse();
 
