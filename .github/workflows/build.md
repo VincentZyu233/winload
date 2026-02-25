@@ -114,27 +114,6 @@ flowchart TB
     P1 --> P2 --> P3
     P1 --> P4 --> P5
 ```
-check ──→ build ──→ release ──→ publish-scoop
-  │         │         │              │
-  │         │         │              ├─ Download binaries from Release
-  │         │         │              │  Generate winload.json
-  │         │         │              │  Push to scoop-bucket repo
-  │         │         │              │
-  │         │         │              └─ Download binaries from Release
-  │         │         │                 Generate PKGBUILD & .SRCINFO
-  │         │         │                 Push to AUR
-  │         │         │
-  │         │         └─ Download artifacts
-  │         │            Delete old release/tag
-  │         │            Generate release notes
-  │         │            Create GitHub Release
-  │         │
-  │         └─ Compile for 6 platform targets
-  │            Upload build artifacts
-  │
-  └─ Parse commit message keywords
-     Extract version from Cargo.toml
-```
 
 ## 🍺 Scoop Publish (Rust)
 

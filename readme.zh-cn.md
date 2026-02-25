@@ -14,10 +14,14 @@
 [![Linux x64 | ARM64](https://img.shields.io/badge/Linux-x64_|_ARM64-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/VincentZyuApps/winload/releases)
 [![macOS x64 | ARM64](https://img.shields.io/badge/macOS-x64_|_ARM64-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
 
+[![PyPI](https://img.shields.io/badge/PyPI-3776AB?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/winload/)
+
 [![Scoop](https://img.shields.io/badge/Scoop-7B4AE2?style=for-the-badge&logo=scoop&logoColor=white)](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FVincentZyuApps%2Fscoop-bucket%22&o=false)
 [![AUR](https://img.shields.io/badge/AUR-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://aur.archlinux.org/packages/winload-rust-bin)
 [![APT](https://img.shields.io/badge/APT-E95420?style=for-the-badge&logo=debian&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
 [![RPM](https://img.shields.io/badge/RPM-CB1626?style=for-the-badge&logo=redhat&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
+
+> **[📖 构建文档](.github/workflows/build.zh-cn.md)**
 
 ## 🚀 简介
 Winload 是一个直观的终端网络流量监控工具。最初为 Windows 打造，弥补 nload 在 Windows 上的空白，现已支持 Linux 和 macOS。
@@ -34,20 +38,27 @@ https://github.com/rolandriegel/nload
 - **实时可视化**: 实时上行/下行流量图和吞吐量统计。
 - **简洁界面**: 干净的 TUI，沿袭 nload 的人体工程学设计。
 
-## 📥 安装
+## 📥 Python 版本安装
 
-### Windows (Scoop)
+### Python (pip)
+```bash
+pip install winload
+```
+
+### 📥 Rust 版本安装（推荐）
+
+#### Windows (Scoop)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket
 scoop install winload
 ```
 
-### Arch Linux (AUR):
+#### Arch Linux (AUR):
 ```bash
 paru -S winload-bin
 ```
 
-### Linux (一键安装脚本)
+#### Linux (一键安装脚本)
 > 支持 Debian/Ubuntu 及其下游 —— Linux Mint、Pop!_OS、Deepin、统信 UOS 等 (apt)
 
 > 支持 Fedora/RHEL 及其下游 —— Rocky Linux、AlmaLinux、CentOS Stream 等 (dnf)

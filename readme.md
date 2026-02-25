@@ -15,10 +15,14 @@
 [![Linux x64 | ARM64](https://img.shields.io/badge/Linux-x64_|_ARM64-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/VincentZyuApps/winload/releases)
 [![macOS x64 | ARM64](https://img.shields.io/badge/macOS-x64_|_ARM64-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
 
+[![PyPI](https://img.shields.io/badge/PyPI-3776AB?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/winload/)
+
 [![Scoop](https://img.shields.io/badge/Scoop-7B4AE2?style=for-the-badge&logo=scoop&logoColor=white)](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FVincentZyuApps%2Fscoop-bucket%22&o=false)
 [![AUR](https://img.shields.io/badge/AUR-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://aur.archlinux.org/packages/winload-rust-bin)
 [![APT](https://img.shields.io/badge/APT-E95420?style=for-the-badge&logo=debian&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
 [![RPM](https://img.shields.io/badge/RPM-CB1626?style=for-the-badge&logo=redhat&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
+
+> **[📖 Build Docs](.github/workflows/build.md)**
 
 ## 🚀 Introduction
 Winload brings an intuitive, visual network monitor to the modern terminal. It started as a Windows-focused tool to fill the nload gap, and now targets Linux and macOS as well.
@@ -35,20 +39,27 @@ https://github.com/rolandriegel/nload
 - **Real-time visualization**: live incoming/outgoing graphs and throughput stats.
 - **Minimal UI**: clean TUI that mirrors nload's ergonomics.
 
-## 📥 Installation
+## 📥 Python Edition Installation
 
-### Windows (Scoop)
+### Python (pip)
+```bash
+pip install winload
+```
+
+### 📥 Rust Edition Installation (recommended)
+
+#### Windows (Scoop)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket
 scoop install winload
 ```
 
-### Arch Linux (AUR):
+#### Arch Linux (AUR):
 ```bash
 paru -S winload-rust-bin
 ```
 
-### Linux (one-liner)
+#### Linux (one-liner)
 > Supports Debian/Ubuntu and derivatives — Linux Mint, Pop!_OS, Deepin, UOS, etc. (apt)
 
 > Supports Fedora/RHEL and derivatives — Rocky Linux, AlmaLinux, CentOS Stream, etc. (dnf)

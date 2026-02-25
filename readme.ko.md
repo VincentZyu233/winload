@@ -14,10 +14,14 @@
 [![Linux x64 | ARM64](https://img.shields.io/badge/Linux-x64_|_ARM64-FCC624?style=for-the-badge&logo=linux&logoColor=black)](https://github.com/VincentZyuApps/winload/releases)
 [![macOS x64 | ARM64](https://img.shields.io/badge/macOS-x64_|_ARM64-000000?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
 
+[![PyPI](https://img.shields.io/badge/PyPI-3776AB?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/winload/)
+
 [![Scoop](https://img.shields.io/badge/Scoop-7B4AE2?style=for-the-badge&logo=scoop&logoColor=white)](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FVincentZyuApps%2Fscoop-bucket%22&o=false)
 [![AUR](https://img.shields.io/badge/AUR-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://aur.archlinux.org/packages/winload-rust-bin)
 [![APT](https://img.shields.io/badge/APT-E95420?style=for-the-badge&logo=debian&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
 [![RPM](https://img.shields.io/badge/RPM-CB1626?style=for-the-badge&logo=redhat&logoColor=white)](https://github.com/VincentZyuApps/winload/releases)
+
+> **[📖 빌드 문서](.github/workflows/build.md)**
 
 ## 🚀 소개
 Winload는 현대적인 터미널 환경에서 직관적이고 시각적인 네트워크 모니터링 기능을 제공합니다. 처음에는 Windows 환경에서 `nload`의 공백을 메우기 위한 도구로 시작되었으나, 현재는 Linux와 macOS까지 지원 범위를 확장했습니다.
@@ -33,20 +37,27 @@ Winload는 Roland Riegel의 고전적인 프로젝트인 [nload](https://github.
 - **실시간 시각화**: 실시간으로 유입(Incoming) 및 유출(Outgoing) 트래픽 그래프와 처리량 통계를 보여줍니다.
 - **미니멀한 UI**: `nload`의 사용성을 계승한 깔끔한 TUI(텍스트 사용자 인터페이스)를 제공합니다.
 
-## 📥 설치 방법
+## 📥 Python 버전 설치
 
-### Windows (Scoop 이용)
+### Python (pip)
+```bash
+pip install winload
+```
+
+### 📥 Rust 버전 설치 (권장)
+
+#### Windows (Scoop 이용)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket
 scoop install winload
 ```
 
-### Arch Linux (AUR):
+#### Arch Linux (AUR):
 ```bash
 paru -S winload-bin
 ```
 
-### Linux (간편 설치 스크립트)
+#### Linux (간편 설치 스크립트)
 > Debian/Ubuntu 및 파생 버전(Linux Mint, Pop!_OS, Deepin, UOS 등) 지원 (apt)
 
 > Fedora/RHEL 및 파생 버전(Rocky Linux, AlmaLinux, CentOS Stream 등) 지원 (dnf)
