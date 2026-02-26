@@ -698,21 +698,314 @@ makepkg -si
 
 ---
 
-### 4. Alpine APK
+### 4. Alpine APK ⭐
 
-<details>
-<summary>展开 Alpine APK 步骤（可选）</summary>
+Alpine Linux 使用 `apk` 包管理器，包来源于 **aports** 仓库（托管在 GitLab: `gitlab.alpinelinux.org/alpine/aports`）。
 
-#### 构建 musl 版本
+> 💡 **你的 musl 静态链接二进制天然兼容 Alpine**（Alpine 就是基于 musl 的），所以这是个低成本高回报的平台。
+
+#### Alpine 仓库层级
+
+| 仓库 | 门槛 | 类比 |
+|------|------|------|
+| **testing** | 任何人提交 MR 即可，审核较宽松 | ≈ AUR |
+| **community** | 需要 Alpine 开发者 sponsor + 维护承诺 | ≈ Arch 官方 community |
+| **main** | 核心包，严格审核 | ≈ Arch 官方 core/extra |
+
+---
+
+#### 方案 A: 提交到 testing（推荐先做这个）
+
+##### 前期准备（首次）
+
+1. **注册 GitLab 账号**：https://gitlab.alpinelinux.org/users/sign_up
+
+2. **Fork aports 仓库**：
+   - 访问 https://gitlab.alpinelinux.org/alpine/aports
+   - 点击右上角 **Fork**
+
+3. **Clone 你 fork 的仓库**：
 ```bash
-rustup target add x86_64-unknown-linux-musl
-cd rust
-cargo build --release --target x86_64-unknown-linux-musl
+git clone https://gitlab.alpinelinux.org/<你的用户名>/aports.git
+cd aports
+git remote add upstream https://gitlab.alpinelinux.org/alpine/aports.git
 ```
 
-⚠️ **Alpine APK 需要提交到 Alpine 官方仓库，流程较复杂，建议先覆盖主流平台**
+4. **安装 Alpine 打包工具**（在 Alpine 容器中测试时需要）：
+```bash
+# 方式一：使用 Docker
+docker run -it alpine:latest sh
+apk add alpine-sdk sudo
+adduser -D builder
+echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+addgroup builder abuild
+su builder
+abuild-keygen -a -i  # 生成签名密钥
 
-</details>
+# 方式二：WSL 中不能直接运行 abuild，建议用 Docker
+```
+
+##### 创建 APKBUILD（源码编译版）
+
+```bash
+cd aports
+git checkout -b winload-new-aport
+mkdir -p testing/winload
+cd testing/winload
+```
+
+创建 `APKBUILD` 文件：
+
+```bash
+VERSION="0.1.6_beta4"  # Alpine 用下划线替代连字符！
+                        # 0.1.6-beta.4 → 0.1.6_beta4
+
+cat > APKBUILD << 'EOF'
+# Contributor: VincentZyu <vincentzyu233@gmail.com>
+# Maintainer: VincentZyu <vincentzyu233@gmail.com>
+pkgname=winload
+pkgver=0.1.6_beta4
+pkgrel=0
+pkgdesc="Network Load Monitor - nload-like TUI tool for Windows/Linux/macOS"
+url="https://github.com/VincentZyuApps/winload"
+arch="x86_64 aarch64"
+license="MIT"
+makedepends="cargo"
+source="$pkgname-$pkgver.tar.gz::https://github.com/VincentZyuApps/winload/archive/refs/tags/v${pkgver/_beta/.beta.}.tar.gz"
+# ↑ 注意版本号转换：Alpine pkgver 0.1.6_beta4 → GitHub tag v0.1.6-beta.4
+# 如果是正式版 (如 0.2.0)，直接用 v$pkgver 即可
+
+# 指定解压后的目录名（GitHub tarball 的顶层目录名）
+builddir="$srcdir/winload-${pkgver/_beta/-beta.}"
+
+prepare() {
+	default_prepare
+	cargo fetch --target="$CTARGET" --manifest-path="$builddir/rust/Cargo.toml"
+}
+
+build() {
+	cd "$builddir/rust"
+	cargo build --release --frozen
+}
+
+check() {
+	cd "$builddir/rust"
+	cargo test --release --frozen
+}
+
+package() {
+	install -Dm755 "$builddir/rust/target/release/winload" \
+		"$pkgdir/usr/bin/winload"
+
+	# 安装 LICENSE
+	install -Dm644 "$builddir/LICENSE" \
+		"$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
+
+sha512sums="
+SKIP
+"
+EOF
+```
+
+> 📌 **Alpine 版本号规则**：
+> - 不允许连字符 `-`，用下划线 `_` 替代：`0.1.6-beta.4` → `0.1.6_beta4`
+> - `_beta` / `_rc` / `_alpha` 是 Alpine 约定的预发布后缀
+> - 正式版直接用数字：`0.2.0`
+
+##### 本地测试构建（使用 Docker）
+
+```bash
+# ============================================================
+# 在 Alpine Docker 容器中测试
+# ============================================================
+
+# 1. 启动 Alpine 容器并挂载 aports 目录
+docker run -it --name alpine-build \
+    -v $(pwd)/aports:/home/builder/aports \
+    alpine:latest sh
+
+# 2. 容器内设置
+apk add alpine-sdk sudo cargo rust
+adduser -D builder
+echo "builder ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+addgroup builder abuild
+su builder
+cd ~
+
+# 3. 生成签名密钥
+abuild-keygen -a -i
+
+# 4. 构建测试
+cd ~/aports/testing/winload
+abuild checksum    # 下载源码并计算 sha512
+abuild -r          # 构建包
+
+# 5. 查看产物
+ls ~/packages/testing/x86_64/
+# → winload-0.1.6_beta4-r0.apk
+
+# 6. 测试安装
+sudo apk add --allow-untrusted ~/packages/testing/x86_64/winload-*.apk
+winload --version
+sudo apk del winload
+```
+
+##### 计算校验和（替换 SKIP）
+
+```bash
+# 在 Alpine 容器中
+cd ~/aports/testing/winload
+abuild checksum
+# 这会自动下载源码并更新 APKBUILD 中的 sha512sums
+cat APKBUILD | grep -A2 "sha512sums="
+```
+
+##### 提交 MR 到 aports/testing
+
+```bash
+# 回到宿主机
+cd aports
+
+# 1. 同步上游
+git fetch upstream
+git rebase upstream/master
+
+# 2. 提交
+git add testing/winload/APKBUILD
+git commit -m "testing/winload: new aport
+
+Network Load Monitor - nload-like TUI tool.
+https://github.com/VincentZyuApps/winload"
+
+# 3. 推送到你的 fork
+git push origin winload-new-aport
+
+# 4. 在 GitLab 上创建 Merge Request
+#    - 访问 https://gitlab.alpinelinux.org/<你的用户名>/aports/-/merge_requests/new
+#    - Source branch: winload-new-aport
+#    - Target branch: master (upstream alpine/aports)
+#    - Title: "testing/winload: new aport"
+#    - Description 中附上：
+#      - 项目简介
+#      - 项目 URL
+#      - 为什么要加入 Alpine
+#      - 你愿意维护这个包
+```
+
+##### MR 审核须知
+
+- `testing` 仓库审核较宽松，通常 **1-2 周**内合并
+- Reviewer 可能会要求修改 APKBUILD 格式（Alpine 有严格的代码风格）
+- 常见审核意见：
+  - `sha512sums` 不能用 `SKIP`，必须填实际哈希
+  - `check()` 函数要跑测试（如果有的话）
+  - 依赖列表要精确
+  - 描述不能有营销语言
+
+##### 后续版本更新
+
+包进入 `testing` 后，更新流程和初次提交一样：改 APKBUILD → 提 MR。
+
+```bash
+cd aports/testing/winload
+
+# 1. 更新版本号
+sed -i 's/pkgver=.*/pkgver=0.2.0/' APKBUILD
+sed -i 's/pkgrel=.*/pkgrel=0/' APKBUILD
+
+# 2. 更新校验和
+abuild checksum
+
+# 3. 提交 MR
+git add APKBUILD
+git commit -m "testing/winload: upgrade to 0.2.0"
+git push origin winload-update
+# 创建 MR...
+```
+
+##### 用户安装方式
+
+```bash
+# 启用 testing 仓库（默认未启用）
+echo "https://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories
+
+# 安装
+apk update
+apk add winload
+
+# 卸载
+apk del winload
+```
+
+---
+
+#### 方案 B: 申请进入 community 仓库
+
+> ⚠️ 这是**进阶操作**，建议先在 testing 稳定维护 1-2 个版本再考虑。
+
+##### 什么是 community？
+
+`community` 仓库中的包会在 Alpine 正式发布版中可用（不需要用户手动启用 testing），等同于「官方支持的包」。
+
+##### 进入 community 的要求
+
+1. **包已经在 testing 中稳定运行**（至少 1-2 个发布周期）
+2. **有一位 Alpine 开发者愿意 sponsor 你的包**
+3. **你承诺持续维护**（及时跟进上游版本、修复安全漏洞）
+
+##### 申请流程
+
+1. **找到一个 sponsor**：
+   - 在 Alpine 开发者 IRC/Matrix 频道联系：
+     - IRC: `#alpine-devel` on `irc.oftc.net`
+     - Matrix: `#alpine-devel:oftc.net`
+   - 或者在 MR 中直接 @mention 活跃的 Alpine 开发者
+   - 礼貌地介绍你的包和维护意愿
+
+2. **Sponsor 会帮你**：
+   - Review 你的 APKBUILD
+   - 将包从 `testing` 移动到 `community`
+   - 提交 MR: `git mv testing/winload community/winload`
+
+3. **成为 Alpine Contributor**（可选，更高权限）：
+   - 持续贡献多个包后，可以申请成为 Alpine Developer
+   - 需要签署 CLA（Contributor License Agreement）
+   - 访问 https://wiki.alpinelinux.org/wiki/Developer_Handbook 了解详情
+
+##### 从 testing 移到 community 的 MR 示例
+
+```bash
+cd aports
+git checkout -b winload-to-community
+git mv testing/winload community/winload
+git commit -m "community/winload: move from testing
+
+Winload has been stable in testing for N releases.
+Sponsored-by: <sponsor-name>"
+git push origin winload-to-community
+# 创建 MR，需要 sponsor 的 approve
+```
+
+##### community 的额外要求
+
+| 要求 | 说明 |
+|------|------|
+| 安全响应 | 上游有 CVE 时需要及时更新 |
+| 版本跟进 | Alpine 每个大版本冻结前需要更新到最新 |
+| 构建维护 | 确保在所有支持的架构上都能编译 |
+| secfixes 注释 | 安全修复需要在 APKBUILD 中标注 CVE 号 |
+
+#### ⚠️ Alpine 常见坑
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| `pkgver` 包含 `-` | Alpine 不允许连字符 | 用 `_` 替代：`0.1.6_beta4` |
+| `cargo fetch` 失败 | 容器内无网络 | 确保 Docker 网络正常 |
+| `abuild` 权限错误 | 不能以 root 运行 abuild | 切换到普通用户 `su builder` |
+| `sha512sums` 校验失败 | 哈希过期 | 重新运行 `abuild checksum` |
+| 交叉编译 aarch64 | Alpine CI 会自动在 aarch64 runner 上构建 | 你只需确保 `arch="x86_64 aarch64"` |
+| Rust 版本太旧 | Alpine 仓库中的 Rust 可能落后 | 在 APKBUILD 中加 `makedepends="cargo rust>=1.70"` |
 
 ---
 
@@ -919,21 +1212,247 @@ brew install winload
 
 ## 📱 Termux (Android)
 
-<details>
-<summary>展开 Termux 步骤（可选）</summary>
+Termux 底层使用 `apt`/`dpkg`（和 Debian 类似），但 **不能直接用现有的 Linux .deb 包**。
 
-需要提交 PR 到 `termux/termux-packages` 仓库，流程复杂，建议暂缓。
+> ⚠️ **为什么现有 Linux 二进制不能直接用？**
+> 1. **Target triple 不同**：Termux 需要 `aarch64-linux-android` / `x86_64-linux-android`，不是 `aarch64-unknown-linux-gnu`
+> 2. **前缀不同**：Termux 的根目录是 `/data/data/com.termux/files/usr/`，不是 `/usr/`
+> 3. **libc 不同**：Android 用 Bionic libc，不是 glibc 也不是 musl
 
-或者提供直接下载方式：
+#### Termux 包来源
+
+| 方式 | 说明 | 类比 |
+|------|------|------|
+| **termux-packages 官方仓库** | 提 PR 到 `termux/termux-packages` GitHub 仓库 | ≈ Alpine community（有审核） |
+| **termux-user-repository (TUR)** | 社区维护的第三方仓库，门槛更低 | ≈ AUR |
+
+---
+
+### 提交到 TUR（Termux User Repository）⭐
+
+TUR（`termux-user-repository/tur`）是社区驱动的，审核宽松，类似 AUR。
+
+##### 前期准备（首次）
+
+1. **Fork TUR 仓库**：
+   - 访问 https://github.com/termux-user-repository/tur
+   - 点击右上角 **Fork**
+
+2. **Clone 你 fork 的仓库**：
 ```bash
-# 用户安装（Termux 中）
-pkg install wget
-wget https://github.com/VincentZyu233/winload/releases/download/v${VERSION}/winload-linux-aarch64-v${VERSION}
-chmod +x winload-linux-aarch64-v${VERSION}
-mv winload-linux-aarch64-v${VERSION} $PREFIX/bin/winload
+git clone https://github.com/<你的用户名>/tur.git
+cd tur
+git remote add upstream https://github.com/termux-user-repository/tur.git
 ```
 
-</details>
+3. **安装 termux-packages 构建环境**（用于本地测试）：
+```bash
+# 克隆 termux-packages（TUR 的构建系统基于它）
+git clone https://github.com/termux/termux-packages.git
+cd termux-packages
+
+# 安装 Docker（构建在 Docker 容器中进行）
+# 确保你已安装 Docker
+
+# 首次运行：构建 Docker 镜像（需要一些时间）
+./scripts/run-docker.sh
+# 这会下载并启动一个带完整 Android NDK 的构建容器
+```
+
+##### 创建包描述文件
+
+```bash
+cd tur
+git checkout -b add-winload
+mkdir -p tur/winload
+cd tur/winload
+```
+
+创建 `build.sh` 文件：
+
+```bash
+cat > build.sh << 'EOF'
+TERMUX_PKG_HOMEPAGE=https://github.com/VincentZyuApps/winload
+TERMUX_PKG_DESCRIPTION="Network Load Monitor - nload-like TUI tool"
+TERMUX_PKG_LICENSE="MIT"
+TERMUX_PKG_MAINTAINER="VincentZyu <vincentzyu233@gmail.com>"
+TERMUX_PKG_VERSION="0.1.6-beta.4"
+TERMUX_PKG_SRCURL=https://github.com/VincentZyuApps/winload/archive/refs/tags/v${TERMUX_PKG_VERSION}.tar.gz
+TERMUX_PKG_SHA256=SKIP_THIS_WILL_BE_FILLED
+TERMUX_PKG_AUTO_UPDATE=true
+TERMUX_PKG_BUILD_IN_SRC=true
+
+termux_step_make() {
+    termux_setup_rust
+    cd rust
+    cargo build --jobs $TERMUX_PKG_MAKE_PROCESSES --target $CARGO_TARGET_NAME --release
+}
+
+termux_step_make_install() {
+    install -Dm755 -t $TERMUX_PREFIX/bin rust/target/$CARGO_TARGET_NAME/release/winload
+}
+EOF
+```
+
+> 📌 **TUR build.sh 关键字段**：
+> - `TERMUX_PKG_HOMEPAGE` — 项目主页
+> - `TERMUX_PKG_DESCRIPTION` — 简短描述
+> - `TERMUX_PKG_LICENSE` — 许可证
+> - `TERMUX_PKG_VERSION` — 版本号（可以用连字符，不像 Alpine）
+> - `TERMUX_PKG_SRCURL` — 源码下载地址
+> - `TERMUX_PKG_SHA256` — 源码包 SHA256 校验和
+> - `TERMUX_PKG_AUTO_UPDATE=true` — 启用自动版本检测
+> - `termux_setup_rust` — Termux 构建系统提供的 Rust 工具链设置函数
+> - `$CARGO_TARGET_NAME` — 构建系统自动设置（如 `aarch64-linux-android`）
+> - `$TERMUX_PREFIX` — Termux 的安装前缀（`/data/data/com.termux/files/usr`）
+
+##### 计算 SHA256
+
+```bash
+# 下载源码包并计算哈希
+VERSION="0.1.6-beta.4"
+wget "https://github.com/VincentZyuApps/winload/archive/refs/tags/v${VERSION}.tar.gz"
+SHA256=$(sha256sum "v${VERSION}.tar.gz" | awk '{print $1}')
+echo "SHA256: $SHA256"
+rm "v${VERSION}.tar.gz"
+
+# 更新 build.sh 中的哈希
+sed -i "s/TERMUX_PKG_SHA256=.*/TERMUX_PKG_SHA256=${SHA256}/" build.sh
+```
+
+##### 本地测试构建（使用 Docker）
+
+```bash
+# ============================================================
+# 方式一：使用 termux-packages 的 Docker 构建系统
+# ============================================================
+
+# 1. 克隆 termux-packages（如果还没有）
+git clone https://github.com/termux/termux-packages.git
+cd termux-packages
+
+# 2. 将你的包复制进去
+cp -r /path/to/tur/tur/winload packages/
+
+# 3. 在 Docker 中构建
+./scripts/run-docker.sh ./build-package.sh winload
+
+# 4. 构建产物在 output/ 目录
+ls output/
+# → winload_0.1.6-beta.4_aarch64.deb
+# → winload_0.1.6-beta.4_x86_64.deb 等
+
+# ============================================================
+# 方式二：直接在 Termux 中测试（如果有 Android 设备）
+# ============================================================
+
+# 在 Termux 中
+pkg install rust
+git clone https://github.com/VincentZyuApps/winload.git
+cd winload/rust
+cargo build --release
+cp target/release/winload $PREFIX/bin/
+winload --version
+```
+
+##### 提交 PR 到 TUR
+
+```bash
+cd tur
+
+# 1. 同步上游
+git fetch upstream
+git rebase upstream/master
+
+# 2. 提交
+git add tur/winload/build.sh
+git commit -m "tur/winload: Add new package
+
+Network Load Monitor - nload-like TUI tool.
+Homepage: https://github.com/VincentZyuApps/winload"
+
+# 3. 推送到你的 fork
+git push origin add-winload
+
+# 4. 在 GitHub 上创建 Pull Request
+#    - 访问 https://github.com/<你的用户名>/tur/pulls
+#    - 点击 "New pull request"
+#    - Base: termux-user-repository/tur master
+#    - Compare: 你的 add-winload 分支
+#    - Title: "tur/winload: Add new package"
+#    - Description 中附上：
+#      - 项目简介和 URL
+#      - 你在 Termux 中测试过的截图/日志
+#      - 支持的架构：aarch64, x86_64
+```
+
+##### PR 审核须知
+
+- TUR 审核比较**宽松**，通常 **几天到 1 周**内合并
+- Reviewer 可能会要求：
+  - 补全 SHA256 校验和（不能用 SKIP）
+  - 测试截图/日志
+  - `build.sh` 格式调整
+- PR 合并后，包会自动构建并发布到 TUR 仓库
+
+##### 后续版本更新
+
+```bash
+cd tur/tur/winload
+
+# 1. 更新版本号
+NEW_VERSION="0.2.0"
+sed -i "s/TERMUX_PKG_VERSION=.*/TERMUX_PKG_VERSION=\"${NEW_VERSION}\"/" build.sh
+
+# 2. 更新 SHA256
+wget "https://github.com/VincentZyuApps/winload/archive/refs/tags/v${NEW_VERSION}.tar.gz"
+NEW_SHA256=$(sha256sum "v${NEW_VERSION}.tar.gz" | awk '{print $1}')
+sed -i "s/TERMUX_PKG_SHA256=.*/TERMUX_PKG_SHA256=${NEW_SHA256}/" build.sh
+rm "v${NEW_VERSION}.tar.gz"
+
+# 3. 提交 PR
+git add build.sh
+git commit -m "tur/winload: Update to ${NEW_VERSION}"
+git push origin winload-update
+# 创建 PR...
+```
+
+##### 用户安装方式
+
+```bash
+# 1. 在 Termux 中添加 TUR 仓库（首次）
+pkg install tur-repo
+
+# 2. 安装
+pkg install winload
+# 或
+apt install winload
+
+# 3. 使用
+winload
+
+# 4. 卸载
+pkg uninstall winload
+```
+
+##### 关于 Termux 官方仓库（termux-packages）
+
+> 如果 winload 在 TUR 中稳定运行一段时间，可以考虑提 PR 到 `termux/termux-packages` 官方仓库。
+> 流程和 TUR 类似，但审核更严格，通常需要：
+> - 包在 TUR 中有一定使用量
+> - 代码质量和构建配置符合 Termux 标准
+> - 维护者响应及时
+
+#### ⚠️ Termux 常见坑
+
+| 问题 | 原因 | 解决 |
+|------|------|------|
+| 编译失败 `android` 未知 target | 缺少 Android NDK | `termux_setup_rust` 会自动配置 |
+| `sysinfo` crate 不工作 | Android 权限限制 | 需要测试，部分网卡信息可能受限 |
+| 安装路径错误 | 用了 `/usr/bin` | 必须用 `$TERMUX_PREFIX/bin` |
+| Docker 构建内存不足 | Rust 编译吃内存 | 分配 ≥4GB RAM 给 Docker |
+| `TERMUX_PKG_SHA256=SKIP` | PR 不会被接受 | 必须填真实哈希 |
+| 链接错误 (Bionic) | 使用了 glibc 特有 API | 确保源码兼容 Android Bionic |
 
 ---
 
@@ -948,10 +1467,14 @@ mv winload-linux-aarch64-v${VERSION} $PREFIX/bin/winload
 4. ✅ **Homebrew** — 创建 tap 仓库，写 Formula
 5. ✅ **RPM** — `cargo-generate-rpm` 出包
 
-### 第三批（可选）
-6. ⏸️ **Winget** — 首次需要 PR 审核
-7. ⏸️ **Alpine APK** — 较复杂
-8. ⏸️ **Termux** — 独立维护
+### 第三批
+6. ⏸️ **Alpine APK (testing)** — 写 APKBUILD + 提 MR 到 aports（musl 二进制天然兼容）
+7. ⏸️ **Termux (TUR)** — 写 build.sh + 提 PR 到 TUR（需要 Android target 编译）
+8. ⏸️ **Winget** — 首次需要 PR 审核
+
+### 第四批（进阶）
+9. ⏸️ **Alpine community** — 需要 sponsor + 维护承诺
+10. ⏸️ **Termux 官方** — 从 TUR 毕业到 termux-packages
 
 ---
 
@@ -967,7 +1490,10 @@ mv winload-linux-aarch64-v${VERSION} $PREFIX/bin/winload
 - [ ] 更新 Scoop manifest（CI 自动化 / 手动更新 version+hash）
 - [ ] 更新 Homebrew Formula（更新 version 和 sha256）
 - [ ] 更新 AUR PKGBUILD（更新 pkgver、sha256sums，重新生成 .SRCINFO）
+- [ ] 更新 Alpine APKBUILD（更新 pkgver，运行 `abuild checksum`，提 MR）
+- [ ] 更新 Termux TUR build.sh（更新 TERMUX_PKG_VERSION + SHA256，提 PR）
 - [ ] 测试安装：`scoop install winload`、`brew install winload`、`paru -S winload-rust-bin`、`paru -S winload-rust`
+- [ ] 测试安装：Alpine `apk add winload`、Termux `pkg install winload`
 
 > 🤖 后续 CI 自动化后，DEB/RPM/AUR 会自动发布 x86_64 + aarch64 双架构（都用 musl 零依赖）。
 
