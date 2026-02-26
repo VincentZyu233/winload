@@ -750,10 +750,10 @@ jobs:
           NPM_VERSION="${VERSION#v}"
           NPM_TAG="latest"
 
-          cd npm/winload-rust-bin
-
           # 复制项目根目录的 README.md 作为 npm 页面展示
-          cp ../../README.md ./README.md
+          cp README.md npm/winload-rust-bin/README.md
+
+          cd npm/winload-rust-bin
 
           # 动态更新 package.json 中的版本号（版本以 Cargo.toml 为唯一真实源）
           node -e "
