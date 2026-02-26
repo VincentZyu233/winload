@@ -10,7 +10,7 @@ CI/CD 流水线完全由 **commit 信息中的关键词** 驱动。推送到 `ma
 
 ## 🔑 关键词
 
-| Commit 信息中的关键词 | 构建（6 平台） | GitHub Release | Scoop Bucket | PyPI |
+| Commit 信息中的关键词 | 构建（8 平台） | GitHub Release | Scoop / AUR / npm | PyPI |
 |----------------------|:---:|:---:|:---:|:---:|
 | *（无关键词）* | ❌ | ❌ | ❌ | ❌ |
 | `build action` | ✅ | ❌ | ❌ | ❌ |
@@ -46,32 +46,36 @@ git commit --allow-empty -m "release: v0.2.0 (pypi publish)"
 
 | 平台 | 架构 | Target | 说明 |
 |------|:---:|--------|------|
-| Windows | x64 | `x86_64-pc-windows-msvc` | 原生 MSVC 编译 |
-| Windows | ARM64 | `aarch64-pc-windows-msvc` | 在 x64 runner 上交叉编译 |
-| Linux | x64 | `x86_64-unknown-linux-musl` | musl 静态链接，可移植 |
-| Linux | ARM64 | `aarch64-unknown-linux-gnu` | 在 ubuntu-22.04 上编译，降低 GLIBC 要求 |
-| macOS | x64 | `x86_64-apple-darwin` | 在 Apple Silicon runner 上编译 |
-| macOS | ARM64 | `aarch64-apple-darwin` | 原生 Apple Silicon |
+| Windows | x64 | `x86_64-pc-windows-msvc` | 在 Windows x64 runner 上用原生 MSVC 编译，主要用于一般 Windows 桌面（桌面市场主流） |
+| Windows | ARM64 | `aarch64-pc-windows-msvc` | 在 Windows x64 runner 上用 MSVC 交叉编译，主要用于 ARM Windows 设备（高通骁龙 X Elite/Plus 笔记本、Surface Pro X 等） |
+| Linux | x64 | `x86_64-unknown-linux-musl` | 在 Ubuntu runner 上用 musl 静态链接编译，主要用于所有 x64 Linux 发行版（大部分云服务器） |
+| Linux | ARM64 | `aarch64-unknown-linux-gnu` | 在 ubuntu-22.04 上用 gcc-aarch64 交叉编译，主要用于 ARM64 服务器 / 单片机（树莓派等） |
+| macOS | x64 | `x86_64-apple-darwin` | 在 Apple Silicon runner 上通过 Rosetta 编译，主要用于 Intel Mac（2020 年及更早的老款 Mac） |
+| macOS | ARM64 | `aarch64-apple-darwin` | 在 Apple Silicon runner 上原生编译，主要用于 M 系列 Mac（2020 年末至今的所有新款 Mac） |
+| Android | ARM64 | `aarch64-linux-android` | 在 Ubuntu runner 上用 NDK（API 24）交叉编译，主要用于 Termux（ARM 手机） |
+| Android | x86_64 | `x86_64-linux-android` | 在 Ubuntu runner 上用 NDK（API 24）交叉编译，主要用于模拟器 / Chromebook |
 
 ## 📦 流水线阶段 (Rust)
 
 ```
-check ──→ build ──→ release ──→ publish-scoop
-  │         │         │              │
-  │         │         │              ├─ 从 Release 下载二进制
-  │         │         │              │  生成 winload.json
-  │         │         │              │  推送到 scoop-bucket 仓库
-  │         │         │              │
-  │         │         │              └─ 从 Release 下载二进制
-  │         │         │                 生成 PKGBUILD & .SRCINFO
-  │         │         │                 推送到 AUR
+check ──→ build ──→ release ──→ publish
+  │         │         │           │
+  │         │         │           ├─ Scoop: 从 Release 下载 Win 二进制
+  │         │         │           │  生成 winload.json → 推送到 scoop-bucket
+  │         │         │           │
+  │         │         │           ├─ AUR: 从 Release 下载 Linux 二进制
+  │         │         │           │  生成 PKGBUILD & .SRCINFO → 推送到 AUR
+  │         │         │           │
+  │         │         │           └─ npm: 从 Release 下载 6 个平台二进制
+  │         │         │              发布平台包 (os/cpu 限定)
+  │         │         │              发布主包 (winload-rust-bin)
   │         │         │
   │         │         └─ 下载构建产物
   │         │            删除旧的 release/tag
   │         │            生成 release notes
   │         │            创建 GitHub Release
   │         │
-  │         └─ 编译 6 个平台目标
+  │         └─ 编译 8 个平台目标
   │            上传构建产物
   │
   └─ 解析 commit 信息关键词
@@ -86,7 +90,7 @@ flowchart TB
     end
     
     subgraph build["build"]
-        B1[编译 6 个平台]
+        B1[编译 8 个平台]
         B2[上传构建产物]
     end
     
@@ -97,12 +101,22 @@ flowchart TB
         R4[创建 GitHub Release]
     end
     
-    subgraph publish["publish-scoop"]
-        P1[下载二进制文件]
-        P2[生成 winload.json]
-        P3[推送到 scoop-bucket]
-        P4[生成 PKGBUILD & .SRCINFO]
-        P5[推送到 AUR]
+    subgraph scoop["publish-scoop"]
+        S1[下载 Win 二进制]
+        S2[生成 winload.json]
+        S3[推送到 scoop-bucket]
+    end
+    
+    subgraph aur["publish-aur-bin"]
+        A1[下载 Linux 二进制]
+        A2[生成 PKGBUILD & .SRCINFO]
+        A3[推送到 AUR]
+    end
+    
+    subgraph npm["publish-npm"]
+        N1[下载 6 个平台二进制]
+        N2[发布平台包]
+        N3[发布主包]
     end
     
     C1 --> C2
@@ -110,9 +124,12 @@ flowchart TB
     B1 --> B2
     B2 --> R1
     R1 --> R2 --> R3 --> R4
-    R4 --> P1
-    P1 --> P2 --> P3
-    P1 --> P4 --> P5
+    R4 --> S1
+    S1 --> S2 --> S3
+    R4 --> A1
+    A1 --> A2 --> A3
+    R4 --> N1
+    N1 --> N2 --> N3
 ```
 
 ## 🍺 Scoop 发布 (Rust)
@@ -137,6 +154,21 @@ flowchart TB
 
 需要在仓库的 **Settings → Secrets → Actions** 中设置 `AUR_SSH_KEY` 密钥，值为 AUR 用户的 SSH 私钥。
 
+## 📦 npm 发布 (Rust)
+
+`publish` 关键词也会触发将 Rust 预编译二进制发布到 npm，包名为 [`winload-rust-bin`](https://www.npmjs.com/package/winload-rust-bin)：
+
+1. 从最新的 GitHub Release 下载 6 个平台的二进制文件（Win/Linux/macOS × x64/ARM64）
+2. 发布 6 个平台专属包，每个包带有 `os`/`cpu` 字段（npm 自动选择匹配的包）
+3. 发布主包 `winload-rust-bin`，通过 `optionalDependencies` 引用各平台包
+4. 所有版本（包括预发布如 `0.1.6-beta.4`）均以 `latest` 标签发布
+
+> 采用 [esbuild](https://github.com/evanw/esbuild) / [Biome](https://github.com/biomejs/biome) 模式：每个平台一个独立包，`optionalDependencies` 确保只下载匹配当前平台的二进制。
+
+### 前置条件
+
+需要在仓库的 **Settings → Secrets → Actions** 中设置 `NPM_TOKEN` 密钥，值为 npm Automation Token。
+
 ## 🐍 PyPI 发布 (Python)
 
 `pypi publish` 关键词会触发将 Python 包发布到 PyPI：
@@ -154,7 +186,7 @@ flowchart TB
 版本号自动从 `rust/Cargo.toml` (Rust) 或 `py/pyproject.toml` (Python) 中提取，用于：
 - Release 标签名（如 `v0.1.5`）
 - 产物文件名（如 `winload-windows-x86_64-v0.1.5.exe`）
-- Scoop/AUR/PyPI 清单文件中的版本字段
+- Scoop/AUR/npm/PyPI 清单文件中的版本字段
 
 ## ⚙️ 前置条件汇总
 
@@ -162,4 +194,5 @@ flowchart TB
 |------|----------|------|
 | `SCOOP_BUCKET_TOKEN` | GitHub PAT（需 `repo` 权限） | 推送到 Scoop bucket |
 | `AUR_SSH_KEY` | AUR 用户 SSH 私钥 | 推送到 AUR |
+| `NPM_TOKEN` | npm Automation Token | 发布到 npm |
 | `PYPI_TOKEN` | PyPI API Token（Scope: "Entire account"） | 推送到 PyPI |

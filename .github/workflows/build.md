@@ -10,7 +10,7 @@ The CI/CD pipeline is driven entirely by **commit message keywords**. Push to `m
 
 ## 🔑 Keywords
 
-| Keyword in commit message | Build (6 platforms) | GitHub Release | Scoop Bucket | PyPI |
+| Keyword in commit message | Build (8 platforms) | GitHub Release | Scoop / AUR / npm | PyPI |
 |---------------------------|:---:|:---:|:---:|:---:|
 | *(none)* | ❌ | ❌ | ❌ | ❌ |
 | `build action` | ✅ | ❌ | ❌ | ❌ |
@@ -46,32 +46,36 @@ git commit --allow-empty -m "release: v0.2.0 (pypi publish)"
 
 | Platform | Architecture | Target | Notes |
 |----------|:---:|--------|-------|
-| Windows | x64 | `x86_64-pc-windows-msvc` | Native MSVC |
-| Windows | ARM64 | `aarch64-pc-windows-msvc` | Cross-compiled on x64 runner |
-| Linux | x64 | `x86_64-unknown-linux-musl` | Static linking (musl), portable |
-| Linux | ARM64 | `aarch64-unknown-linux-gnu` | Built on ubuntu-22.04 for lower GLIBC |
-| macOS | x64 | `x86_64-apple-darwin` | Built on Apple Silicon runner |
-| macOS | ARM64 | `aarch64-apple-darwin` | Native Apple Silicon |
+| Windows | x64 | `x86_64-pc-windows-msvc` | Built on Windows x64 runner with native MSVC, mainly for general Windows desktops (mainstream market) |
+| Windows | ARM64 | `aarch64-pc-windows-msvc` | Cross-compiled on Windows x64 runner with MSVC, mainly for ARM Windows devices (Snapdragon X Elite/Plus laptops, Surface Pro X etc.) |
+| Linux | x64 | `x86_64-unknown-linux-musl` | Built on Ubuntu runner with musl static linking, mainly for all x64 Linux distros (most cloud servers) |
+| Linux | ARM64 | `aarch64-unknown-linux-gnu` | Cross-compiled on ubuntu-22.04 with gcc-aarch64, mainly for ARM64 servers / SBCs (RPi etc.) |
+| macOS | x64 | `x86_64-apple-darwin` | Built on Apple Silicon runner via Rosetta, mainly for Intel Macs (2020 and earlier) |
+| macOS | ARM64 | `aarch64-apple-darwin` | Built natively on Apple Silicon runner, mainly for M-series Macs (all new Macs since late 2020) |
+| Android | ARM64 | `aarch64-linux-android` | Cross-compiled on Ubuntu runner with NDK (API 24), mainly for Termux on ARM phones |
+| Android | x86_64 | `x86_64-linux-android` | Cross-compiled on Ubuntu runner with NDK (API 24), mainly for emulators / Chromebooks |
 
 ## 📦 Pipeline Stages (Rust)
 
 ```
-check ──→ build ──→ release ──→ publish-scoop
-  │         │         │              │
-  │         │         │              ├─ Download binaries from Release
-  │         │         │              │  Generate winload.json
-  │         │         │              │  Push to scoop-bucket
-  │         │         │              │
-  │         │         │              └─ Download binaries from Release
-  │         │         │                 Generate PKGBUILD & .SRCINFO
-  │         │         │                 Push to AUR
+check ──→ build ──→ release ──→ publish
+  │         │         │           │
+  │         │         │           ├─ Scoop: Download Win binaries
+  │         │         │           │  Generate winload.json → Push to scoop-bucket
+  │         │         │           │
+  │         │         │           ├─ AUR: Download Linux binaries
+  │         │         │           │  Generate PKGBUILD & .SRCINFO → Push to AUR
+  │         │         │           │
+  │         │         │           └─ npm: Download 6 platform binaries
+  │         │         │              Publish platform packages (os/cpu scoped)
+  │         │         │              Publish main package (winload-rust-bin)
   │         │         │
   │         │         └─ Download artifacts
   │         │            Delete old release/tag
   │         │            Generate release notes
   │         │            Create GitHub Release
   │         │
-  │         └─ Compile for 6 platform targets
+  │         └─ Compile for 8 platform targets
   │            Upload build artifacts
   │
   └─ Parse commit message keywords
@@ -86,7 +90,7 @@ flowchart TB
     end
     
     subgraph build["build"]
-        B1[Compile 6 platforms]
+        B1[Compile 8 platforms]
         B2[Upload artifacts]
     end
     
@@ -97,12 +101,22 @@ flowchart TB
         R4[Create GitHub Release]
     end
     
-    subgraph publish["publish-scoop"]
-        P1[Download binaries]
-        P2[Generate winload.json]
-        P3[Push to scoop-bucket]
-        P4[Generate PKGBUILD & .SRCINFO]
-        P5[Push to AUR]
+    subgraph scoop["publish-scoop"]
+        S1[Download Win binaries]
+        S2[Generate winload.json]
+        S3[Push to scoop-bucket]
+    end
+    
+    subgraph aur["publish-aur-bin"]
+        A1[Download Linux binaries]
+        A2[Generate PKGBUILD & .SRCINFO]
+        A3[Push to AUR]
+    end
+    
+    subgraph npm["publish-npm"]
+        N1[Download 6 platform binaries]
+        N2[Publish platform packages]
+        N3[Publish main package]
     end
     
     C1 --> C2
@@ -110,9 +124,12 @@ flowchart TB
     B1 --> B2
     B2 --> R1
     R1 --> R2 --> R3 --> R4
-    R4 --> P1
-    P1 --> P2 --> P3
-    P1 --> P4 --> P5
+    R4 --> S1
+    S1 --> S2 --> S3
+    R4 --> A1
+    A1 --> A2 --> A3
+    R4 --> N1
+    N1 --> N2 --> N3
 ```
 
 ## 🍺 Scoop Publish (Rust)
@@ -137,6 +154,21 @@ The `publish` keyword also triggers an update to the AUR package [winload-rust-b
 
 A repository secret `AUR_SSH_KEY` must be set in **Settings → Secrets → Actions**, containing the private SSH key for the AUR user.
 
+## 📦 npm Publish (Rust)
+
+The `publish` keyword also triggers publishing to npm as [`winload-rust-bin`](https://www.npmjs.com/package/winload-rust-bin):
+
+1. Downloads 6 platform binaries (Win/Linux/macOS × x64/ARM64) from the latest GitHub Release
+2. Publishes 6 platform-specific packages with `os`/`cpu` fields (npm auto-selects the matching one)
+3. Publishes the main `winload-rust-bin` package with `optionalDependencies`
+4. All versions (including pre-release like `0.1.6-beta.4`) are published as `latest`
+
+> Uses the [esbuild](https://github.com/evanw/esbuild) / [Biome](https://github.com/biomejs/biome) pattern: each platform has its own scoped package, `optionalDependencies` ensures only the matching binary is downloaded.
+
+### Prerequisite
+
+A repository secret `NPM_TOKEN` must be set in **Settings → Secrets → Actions**, containing an npm Automation token.
+
 ## 🐍 PyPI Publish (Python)
 
 The `pypi publish` keyword triggers publishing the Python package to PyPI:
@@ -154,7 +186,7 @@ A repository secret `PYPI_TOKEN` must be set in **Settings → Secrets → Actio
 The version is automatically extracted from `rust/Cargo.toml` (Rust) or `py/pyproject.toml` (Python) and used for:
 - Release tag name (e.g. `v0.1.5`)
 - Artifact filenames (e.g. `winload-windows-x86_64-v0.1.5.exe`)
-- Scoop/AUR/PyPI manifest version field
+- Scoop/AUR/npm/PyPI manifest version field
 
 ## ⚙️ Prerequisites Summary
 
@@ -162,4 +194,5 @@ The version is automatically extracted from `rust/Cargo.toml` (Rust) or `py/pypr
 |--------|--------------|---------|
 | `SCOOP_BUCKET_TOKEN` | GitHub PAT with `repo` scope | Push to Scoop bucket |
 | `AUR_SSH_KEY` | AUR user SSH private key | Push to AUR |
+| `NPM_TOKEN` | npm Automation token | Publish to npm |
 | `PYPI_TOKEN` | PyPI API token (Scope: "Entire account") | Push to PyPI |
