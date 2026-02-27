@@ -1456,12 +1456,232 @@ pkg uninstall winload
 
 ---
 
+## 📦 npm 发布（winload-rust-bin）
+
+> ✅ 已有 GitHub Actions 自动化（commit message 含 `build publish` 即可）。
+> 以下为**手动发布**流程参考，用于 CI 失败时手动补发或调试 token 问题。
+
+### 架构说明
+
+npm 发布采用 **esbuild 模式**（与 `@biomejs/biome`、`turbo` 等项目相同）：
+
+| 包名 | 说明 |
+|---|---|
+| `winload-rust-bin` | **主包**（入口脚本，不含二进制） |
+| `winload-rust-bin-win32-x64` | Windows x64 二进制 |
+| `winload-rust-bin-win32-arm64` | Windows ARM64 二进制 |
+| `winload-rust-bin-linux-x64` | Linux x64 二进制 |
+| `winload-rust-bin-linux-arm64` | Linux ARM64 二进制 |
+| `winload-rust-bin-darwin-x64` | macOS x64 二进制 |
+| `winload-rust-bin-darwin-arm64` | macOS ARM64 二进制 |
+
+主包通过 `optionalDependencies` 引用平台包，npm install 时自动只下载匹配当前平台的那一个。
+
+### 前置条件
+
+```bash
+# 1. 确认已安装 Node.js
+node -v   # >= 18
+npm -v
+
+# 2. 登录 npm（如果用 token 则不用登录）
+npm login
+# 或者设置 token 环境变量：
+export NODE_AUTH_TOKEN="npm_xxxxxxxxxxxx"
+```
+
+> ⚠️ **npm token 要求**：
+> - 2024 年起，npm 要求发布包必须使用 **Granular Access Token**
+>   并勾选 **"Bypass two-factor authentication (2FA)"**。
+> - 旧版 Automation token 可能因 2FA 策略被拒。
+> - 创建入口：https://www.npmjs.com/settings/~/tokens → **Generate New Token** → **Granular Access Token**
+> - Packages and scopes → **Read and write**
+> - Security settings → ✅ **Bypass two-factor authentication (2FA)**
+
+### 手动发布步骤
+
+#### Step 1: 下载二进制
+
+从 GitHub Release 下载当前版本的所有平台二进制：
+```bash
+VERSION="v0.1.7-beta.3"  # ← 替换为实际版本
+REPO="VincentZyuApps/winload"
+BASE_URL="https://github.com/${REPO}/releases/download/${VERSION}"
+
+mkdir -p artifacts
+curl -fSL -o artifacts/winload-windows-x86_64.exe   "${BASE_URL}/winload-windows-x86_64-${VERSION}.exe"
+curl -fSL -o artifacts/winload-windows-aarch64.exe  "${BASE_URL}/winload-windows-aarch64-${VERSION}.exe"
+curl -fSL -o artifacts/winload-linux-x86_64         "${BASE_URL}/winload-linux-x86_64-${VERSION}"
+curl -fSL -o artifacts/winload-linux-aarch64        "${BASE_URL}/winload-linux-aarch64-${VERSION}"
+curl -fSL -o artifacts/winload-macos-x86_64         "${BASE_URL}/winload-macos-x86_64-${VERSION}"
+curl -fSL -o artifacts/winload-macos-aarch64        "${BASE_URL}/winload-macos-aarch64-${VERSION}"
+
+ls -lh artifacts/
+```
+
+> 💡 **Windows PowerShell 版本**：
+> ```powershell
+> $VERSION = "v0.1.7-beta.3"
+> $REPO = "VincentZyuApps/winload"
+> $BASE = "https://github.com/$REPO/releases/download/$VERSION"
+> mkdir -Force artifacts
+> @(
+>   @("winload-windows-x86_64.exe",  "winload-windows-x86_64-$VERSION.exe"),
+>   @("winload-windows-aarch64.exe", "winload-windows-aarch64-$VERSION.exe"),
+>   @("winload-linux-x86_64",        "winload-linux-x86_64-$VERSION"),
+>   @("winload-linux-aarch64",       "winload-linux-aarch64-$VERSION"),
+>   @("winload-macos-x86_64",        "winload-macos-x86_64-$VERSION"),
+>   @("winload-macos-aarch64",       "winload-macos-aarch64-$VERSION")
+> ) | ForEach-Object {
+>   Invoke-WebRequest -Uri "$BASE/$($_[1])" -OutFile "artifacts/$($_[0])"
+> }
+> Get-ChildItem artifacts/
+> ```
+
+#### Step 2: 发布 6 个平台包
+
+```bash
+NPM_VERSION="${VERSION#v}"   # 去掉 v 前缀 → 0.1.7-beta.3
+NPM_TAG="latest"
+
+# 平台定义: 包名|os|cpu|源文件|二进制名
+PLATFORMS=(
+  "winload-rust-bin-win32-x64|win32|x64|artifacts/winload-windows-x86_64.exe|winload.exe"
+  "winload-rust-bin-win32-arm64|win32|arm64|artifacts/winload-windows-aarch64.exe|winload.exe"
+  "winload-rust-bin-linux-x64|linux|x64|artifacts/winload-linux-x86_64|winload"
+  "winload-rust-bin-linux-arm64|linux|arm64|artifacts/winload-linux-aarch64|winload"
+  "winload-rust-bin-darwin-x64|darwin|x64|artifacts/winload-macos-x86_64|winload"
+  "winload-rust-bin-darwin-arm64|darwin|arm64|artifacts/winload-macos-aarch64|winload"
+)
+
+for entry in "${PLATFORMS[@]}"; do
+  IFS='|' read -r PKG_NAME PKG_OS PKG_CPU SOURCE_BIN BIN_NAME <<< "$entry"
+
+  echo "📦 Publishing ${PKG_NAME}@${NPM_VERSION}..."
+  PKG_DIR="npm-platforms/${PKG_NAME}"
+  mkdir -p "${PKG_DIR}/bin"
+
+  cp "${SOURCE_BIN}" "${PKG_DIR}/bin/${BIN_NAME}"
+  chmod +x "${PKG_DIR}/bin/${BIN_NAME}"
+
+  cat > "${PKG_DIR}/package.json" << EOF
+{
+  "name": "${PKG_NAME}",
+  "version": "${NPM_VERSION}",
+  "description": "winload binary for ${PKG_OS}-${PKG_CPU}",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VincentZyuApps/winload"
+  },
+  "os": ["${PKG_OS}"],
+  "cpu": ["${PKG_CPU}"],
+  "files": ["bin/"]
+}
+EOF
+
+  cd "${PKG_DIR}"
+  npm publish --access public --tag "${NPM_TAG}"
+  cd -
+done
+```
+
+> 💡 如果只想测试发布**某一个平台**（比如 win32-x64），只需运行对应的那一条即可，
+> 不必全部发布。
+
+#### Step 3: 发布主包（winload-rust-bin）
+
+```bash
+NPM_VERSION="${VERSION#v}"
+NPM_TAG="latest"
+
+# 回到项目根目录
+cd /path/to/winload   # ← 替换为项目实际路径
+
+# 复制 README（npm 页面展示用）
+cp readme.md npm/winload-rust-bin/README.md
+
+cd npm/winload-rust-bin
+
+# 更新 package.json 版本号 + optionalDependencies 版本号
+node -e "
+  const fs = require('fs');
+  const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+  pkg.version = '${NPM_VERSION}';
+  for (const dep of Object.keys(pkg.optionalDependencies || {})) {
+    pkg.optionalDependencies[dep] = '${NPM_VERSION}';
+  }
+  fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+"
+
+echo "📦 package.json 内容确认："
+cat package.json
+
+npm publish --access public --tag "${NPM_TAG}"
+echo "✅ winload-rust-bin@${NPM_VERSION} 发布完成！"
+```
+
+### 发布单个平台包的快捷方式（调试用）
+
+如果只想快速测试一个平台（比如 Windows x64）：
+
+```bash
+VERSION="v0.1.7-beta.3"
+NPM_VERSION="${VERSION#v}"
+
+# 下载单个二进制
+curl -fSL -o winload.exe \
+  "https://github.com/VincentZyuApps/winload/releases/download/${VERSION}/winload-windows-x86_64-${VERSION}.exe"
+
+# 创建临时包目录
+mkdir -p test-pkg/bin
+cp winload.exe test-pkg/bin/winload.exe
+cat > test-pkg/package.json << EOF
+{
+  "name": "winload-rust-bin-win32-x64",
+  "version": "${NPM_VERSION}",
+  "description": "winload binary for win32-x64",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/VincentZyuApps/winload" },
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "files": ["bin/"]
+}
+EOF
+
+cd test-pkg
+npm publish --access public
+```
+
+### 验证安装
+
+```bash
+# 全局安装
+npm install -g winload-rust-bin
+winload --version
+
+# 或用 npx 临时运行
+npx winload-rust-bin --help
+```
+
+### 常见问题
+
+| 现象 | 原因 | 解决 |
+|---|---|---|
+| `E403 Two-factor authentication...` | npm token 未勾选 Bypass 2FA | 重新创建 Granular Access Token 并勾选 ✅ Bypass 2FA |
+| `E403 Forbidden` | token 无写入权限 | 确认 token 有 Read and write 权限 |
+| `E409 version already exists` | 该版本已发布过 | 升版本号再发，npm 不允许覆盖已发布版本 |
+| `cp: cannot stat 'README.md'` | 文件名大小写不匹配（Linux） | 用 `readme.md`（小写，与 git 中一致） |
+
+---
+
 ## 🎯 推荐发布顺序
 
 ### 第一批（简单且用户多）
 1. ✅ **Scoop** — 已有 CI 自动化 ✨
-2. ✅ **DEB** — `cargo-deb` 一条命令出包
-3. ✅ **AUR** — 写 PKGBUILD + push 到 AUR
+2. ✅ **npm** — 已有 CI 自动化 ✨（esbuild 模式，6 平台包 + 主包）
+3. ✅ **DEB** — `cargo-deb` 一条命令出包
+4. ✅ **AUR** — 写 PKGBUILD + push 到 AUR
 
 ### 第二批
 4. ✅ **Homebrew** — 创建 tap 仓库，写 Formula
@@ -1488,6 +1708,7 @@ pkg uninstall winload
 - [ ] 构建并上传 DEB 包（amd64）
 - [ ] 构建并上传 RPM 包（x86_64）
 - [ ] 更新 Scoop manifest（CI 自动化 / 手动更新 version+hash）
+- [ ] 发布 npm 包（CI 自动化 / 手动 `npm publish` 6 个平台包 + 主包）
 - [ ] 更新 Homebrew Formula（更新 version 和 sha256）
 - [ ] 更新 AUR PKGBUILD（更新 pkgver、sha256sums，重新生成 .SRCINFO）
 - [ ] 更新 Alpine APKBUILD（更新 pkgver，运行 `abuild checksum`，提 MR）
