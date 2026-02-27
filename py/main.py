@@ -14,6 +14,7 @@ winload - Windows Network Load Monitor
 
 import argparse
 import curses
+import platform
 import sys
 import time
 from importlib.metadata import version as get_pkg_version
@@ -28,6 +29,16 @@ def get_version() -> str:
         return get_pkg_version("winload")
     except Exception:
         return "unknown"
+
+
+def get_system_info() -> str:
+    """Get system information string"""
+    return f"System: {platform.system()} | Arch: {platform.machine()}"
+
+
+def print_system_info() -> None:
+    """Print system information to stderr"""
+    print(f"\n{get_system_info()}", file=sys.stderr)
 
 
 def parse_max_value(s: str) -> float:
@@ -75,6 +86,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="winload",
         description=f"winload {get_version()} (Python edition)\n{t('description')}",
+        epilog=f"\n{get_system_info()}",
         formatter_class=argparse.RawTextHelpFormatter,
     )
     parser.add_argument(
@@ -266,6 +278,8 @@ def main() -> None:
         curses.wrapper(lambda stdscr: main_loop(stdscr, args))
     except KeyboardInterrupt:
         pass
+    finally:
+        print_system_info()
 
 
 if __name__ == "__main__":

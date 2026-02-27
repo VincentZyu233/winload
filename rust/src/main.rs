@@ -348,6 +348,13 @@ fn run(terminal: &mut ratatui::DefaultTerminal, args: Args) -> io::Result<()> {
 
 // ─── 入口 ──────────────────────────────────────────────────
 
+fn print_system_info() {
+    eprintln!("\nSystem: {} | Arch: {} | Target: {}", 
+        std::env::consts::OS, 
+        std::env::consts::ARCH,
+        env!("TARGET"));
+}
+
 fn pre_scan_lang() -> Lang {
     let args: Vec<String> = std::env::args().collect();
     for i in 0..args.len() {
@@ -372,8 +379,14 @@ fn pre_scan_lang() -> Lang {
 }
 
 fn build_translated_command() -> clap::Command {
+    let after_help = format!("\nSystem: {} | Arch: {} | Target: {}", 
+        std::env::consts::OS, 
+        std::env::consts::ARCH,
+        env!("TARGET"));
+
     Args::command()
         .about(t("description"))
+        .after_help(after_help)
         .mut_arg("interval", |a| a.help(t("help_interval")))
         .mut_arg("average", |a| a.help(t("help_average")))
         .mut_arg("device", |a| a.help(t("help_device")))
@@ -417,5 +430,6 @@ fn main() -> io::Result<()> {
     let mut terminal = ratatui::init();
     let result = run(&mut terminal, args);
     ratatui::restore();
+    print_system_info();
     result
 }
