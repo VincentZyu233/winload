@@ -44,14 +44,21 @@ https://github.com/rolandriegel/nload
 - **ミニマルなUI**: nloadの使い勝手を踏襲したクリーンなTUI（テキストユーザインターフェース）。
 
 ## 📥 Python 版 インストール
-
+> 💡 **実装に関する注記**: PyPI および GitHub/Gitee のソースコードのみが Python 版です。  
+> すべてのパッケージマネージャー（Scoop、AUR、npm、APT、RPM）は **Rust バイナリ** を提供しています。
 ### Python (pip)
 ```bash
 pip install winload
 ```
 
 ## 📥 Rust 版 インストール（推奨）
-
+### npm (クロスプラットフォーム)
+```bash
+npm install -g winload-rust-bin
+# または npx を直接使用
+npx winload-rust-bin
+```
+> 6つのプリコンパイル済みバイナリを含む：x86_64 & ARM64 対応、Windows・Linux・macOS に対応。
 ### Windows (Scoop)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket

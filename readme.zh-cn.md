@@ -44,14 +44,21 @@ https://github.com/rolandriegel/nload
 - **简洁界面**: 干净的 TUI，沿袭 nload 的人体工程学设计。
 
 ## 📥 Python 版本安装
-
+> 💡 **实现说明**：仅 PyPI 和 GitHub/Gitee 源代码是 Python 版本。  
+> 所有包管理器（Scoop、AUR、npm、APT、RPM）都提供 **Rust 二进制文件**。
 ### Python (pip)
 ```bash
 pip install winload
 ```
 
 ## 📥 Rust 版本安装（推荐）
-
+### npm (跨平台)
+```bash
+npm install -g winload-rust-bin
+# 或直接使用 npx
+npx winload-rust-bin
+```
+> 包含 6 个预编译二进制文件：x86_64 & ARM64 版本，支持 Windows、Linux 和 macOS。
 ### Windows (Scoop)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket

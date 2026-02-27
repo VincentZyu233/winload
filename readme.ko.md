@@ -43,14 +43,21 @@ Winload는 Roland Riegel의 고전적인 프로젝트인 [nload](https://github.
 - **미니멀한 UI**: `nload`의 사용성을 계승한 깔끔한 TUI(텍스트 사용자 인터페이스)를 제공합니다.
 
 ## 📥 Python 버전 설치
-
+> 💡 **구똄 참고사항**: PyPI 및 GitHub/Gitee 소스 코드만 Python 버전입니다.  
+> 모든 패키지 관리자(Scoop, AUR, npm, APT, RPM)는 **Rust 바이너리**를 제공합니다.
 ### Python (pip)
 ```bash
 pip install winload
 ```
 
 ## 📥 Rust 버전 설치 (권장)
-
+### npm (크로스 플래트폼)
+```bash
+npm install -g winload-rust-bin
+# 또는 npx 를 직접 사용
+npx winload-rust-bin
+```
+> 6가지 사전 컴파일된 바이너리 포함: x86_64 & ARM64, Windows·Linux·macOS 대응.
 ### Windows (Scoop 이용)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket

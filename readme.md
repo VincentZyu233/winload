@@ -44,14 +44,21 @@ https://github.com/rolandriegel/nload
 - **Minimal UI**: clean TUI that mirrors nload's ergonomics.
 
 ## 📥 Python Edition Installation
-
+> 💡 **Implementation Note**: Only PyPI and source code from GitHub/Gitee provide Python edition.  
+> All package managers (Scoop, AUR, npm, APT, RPM) distribute **Rust binaries only**.
 ### Python (pip)
 ```bash
 pip install winload
 ```
 
 ## 📥 Rust Edition Installation (recommended)
-
+### npm (cross-platform)
+```bash
+npm install -g winload-rust-bin
+# or use npx directly
+npx winload-rust-bin
+```
+> Includes 6 precompiled binaries for x86_64 & ARM64 across Windows, Linux, and macOS.
 ### Windows (Scoop)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket

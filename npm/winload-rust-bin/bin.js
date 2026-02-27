@@ -13,7 +13,14 @@ const { spawnSync } = require("child_process");
 const { getBinaryPath } = require("./index.js");
 
 const bin = getBinaryPath();
-const result = spawnSync(bin, process.argv.slice(2), {
+
+// Show implementation info for help & version flags
+const args = process.argv.slice(2);
+if (args.includes("--help") || args.includes("-h") || args.includes("--version") || args.includes("-V")) {
+  console.error("ℹ️  This is the Rust binary edition (installed from npm)\n");
+}
+
+const result = spawnSync(bin, args, {
   stdio: "inherit",
   windowsHide: false,
 });
