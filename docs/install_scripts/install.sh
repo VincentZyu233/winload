@@ -14,8 +14,12 @@ case "$ARCH" in
   *)
     echo "❌ Unsupported architecture: $ARCH"
     echo "   Only x86_64 and aarch64 are supported."
-    echo "   Please visit https://github.com/${REPO}/releases to download manually,"
-    echo "   or build from source."
+    echo ""
+    echo "   Alternatives:"
+    echo "   • npm (cross-platform): npx winload-rust-bin"
+    echo "     https://www.npmjs.com/package/winload-rust-bin"
+    echo "   • Manual download: https://github.com/${REPO}/releases"
+    echo "   • Build from source: https://github.com/${REPO}"
     exit 1
     ;;
 esac
@@ -28,9 +32,21 @@ elif command -v dnf >/dev/null 2>&1; then
 else
   echo "❌ Unsupported package manager."
   echo "   This installer only supports apt (Debian/Ubuntu) and dnf (Fedora/RHEL)."
-  echo "   Please visit https://github.com/${REPO}/releases to download manually,"
-  echo "   or build from source."
+  echo "   Alternatives:"
+  echo "   • npm (cross-platform): npx winload-rust-bin"
+  echo "     https://www.npmjs.com/package/winload-rust-bin"
+  echo "   • Manual download: https://github.com/${REPO}/releases"
+  echo "   • Build from source: https://github.com/${REPO}"
   exit 1
+fi
+
+# ── Hint for Arch Linux users ────────────────────────────
+if command -v pacman >/dev/null 2>&1; then
+  echo ""
+  echo "💡 Arch Linux detected! You can also install via AUR:"
+  echo "   paru -S winload-rust-bin"
+  echo "   https://aur.archlinux.org/packages/winload-rust-bin"
+  echo ""
 fi
 
 echo "🔍 Detected: arch=$ARCH pkg_mgr=$PKG_MGR"

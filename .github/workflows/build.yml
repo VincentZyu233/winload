@@ -374,7 +374,7 @@ jobs:
             echo '```'
             echo "> 📄 [winload-rust-bin](https://aur.archlinux.org/packages/winload-rust-bin)"
             echo ""
-            echo "**Quick install (Debian/Ubuntu/Fedora and derivatives):**"
+            echo "**One-liner install for some Linux distros (Debian/Ubuntu/RHEL/Fedora and derivatives):**"
             echo '```bash'
             echo "curl -fsSL https://raw.githubusercontent.com/${REPO}/main/docs/install_scripts/install.sh | bash"
             echo '```'
