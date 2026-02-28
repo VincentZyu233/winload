@@ -20,6 +20,7 @@
 
 [![PyPI](https://img.shields.io/badge/PyPI-3776AB?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/winload/)
 [![npm](https://img.shields.io/badge/npm-CB3837?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/winload-rust-bin)
+[![Crates.io](https://img.shields.io/badge/Crates.io-000000?style=for-the-badge&logo=rust&logoColor=white)](https://crates.io/crates/winload)
 
 [![Scoop](https://img.shields.io/badge/Scoop-7B4AE2?style=for-the-badge&logo=scoop&logoColor=white)](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FVincentZyuApps%2Fscoop-bucket%22&o=false)
 [![AUR](https://img.shields.io/badge/AUR-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://aur.archlinux.org/packages/winload-rust-bin)
@@ -45,7 +46,8 @@ https://github.com/rolandriegel/nload
 
 ## 📥 Python 版本安裝
 > 💡 **實作說明**：僅 PyPI 和 GitHub/Gitee 源代碼是 Python 版本。  
-> 所有套件管理器（Scoop、AUR、npm、APT、RPM）都提供 **Rust 二進制文件**。
+> 僅 Cargo 提供 Rust 原始碼供本地編譯。  
+> 所有其他套件管理器（Scoop、AUR、npm、APT、RPM）及 GitHub Releases 均提供 **Rust 二進制文件**。
 ### Python (pip)
 ```bash
 pip install winload
@@ -59,6 +61,11 @@ npm install -g winload-rust-bin
 npx winload-rust-bin
 ```
 > 包含 6 個預編譯二進制文件：x86_64 & ARM64 版本，支援 Windows、Linux 和 macOS。
+
+### Cargo (原始碼編譯)
+```bash
+cargo install winload
+```
 ### Windows (Scoop)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket

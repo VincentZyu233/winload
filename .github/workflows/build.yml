@@ -19,6 +19,7 @@ jobs:
       should_release: ${{ steps.flags.outputs.should_release }}
       should_publish: ${{ steps.flags.outputs.should_publish }}
       should_publish_pypi: ${{ steps.flags.outputs.should_publish_pypi }}
+      should_publish_crates: ${{ steps.flags.outputs.should_publish_crates }}
       version: ${{ steps.flags.outputs.version }}
     steps:
       - name: Checkout
@@ -46,6 +47,8 @@ jobs:
           BUILD=false
           RELEASE=false
           PUBLISH=false
+          PUBLISH_PYPI=false
+          PUBLISH_CRATES=false
           
           # "build publish" = 构建 + Release + 发布到包管理器 (全套)
           if echo "$MSG" | grep -qi "build publish"; then
@@ -71,12 +74,18 @@ jobs:
             PUBLISH_PYPI=true
           fi
           
+          # "crates publish" / "publish crates" = 发布到 crates.io
+          if echo "$MSG" | grep -qiE "crates publish|publish crates"; then
+            PUBLISH_CRATES=true
+          fi
+          
           echo "should_build=$BUILD"     >> "$GITHUB_OUTPUT"
           echo "should_release=$RELEASE" >> "$GITHUB_OUTPUT"
           echo "should_publish=$PUBLISH" >> "$GITHUB_OUTPUT"
           echo "should_publish_pypi=$PUBLISH_PYPI" >> "$GITHUB_OUTPUT"
+          echo "should_publish_crates=$PUBLISH_CRATES" >> "$GITHUB_OUTPUT"
           
-          echo "📋 Flags: build=$BUILD release=$RELEASE publish=$PUBLISH publish_pypi=$PUBLISH_PYPI"
+          echo "📋 Flags: build=$BUILD release=$RELEASE publish=$PUBLISH publish_pypi=$PUBLISH_PYPI publish_crates=$PUBLISH_CRATES"
 
   # ── 多平台构建 ───────────────────────────────────────────
   build:
@@ -796,3 +805,24 @@ jobs:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
           uv publish --publish-url https://upload.pypi.org/legacy/
+
+  # ── 发布到 crates.io (Rust 包) ───────────────────────────────
+  publish-crates-io:
+    name: Publish to crates.io
+    needs: [check, build]
+    if: needs.check.outputs.should_publish_crates == 'true' && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          cd rust
+          cargo publish --allow-dirty --token "$CARGO_REGISTRY_TOKEN"
+          echo "✅ Published to crates.io!"

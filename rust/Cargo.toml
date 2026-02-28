@@ -1,6 +1,6 @@
 [package]
 name = "winload"
-version = "0.1.7-beta.4"
+version = "0.1.7-rc.1"
 edition = "2021"
 description = "Network Load Monitor — nload-like TUI tool for Windows/Linux/macOS"
 license = "MIT"

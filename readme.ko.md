@@ -20,6 +20,7 @@
 
 [![PyPI](https://img.shields.io/badge/PyPI-3776AB?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/winload/)
 [![npm](https://img.shields.io/badge/npm-CB3837?style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/winload-rust-bin)
+[![Crates.io](https://img.shields.io/badge/Crates.io-000000?style=for-the-badge&logo=rust&logoColor=white)](https://crates.io/crates/winload)
 
 [![Scoop](https://img.shields.io/badge/Scoop-7B4AE2?style=for-the-badge&logo=scoop&logoColor=white)](https://scoop.sh/#/apps?q=%22https%3A%2F%2Fgithub.com%2FVincentZyuApps%2Fscoop-bucket%22&o=false)
 [![AUR](https://img.shields.io/badge/AUR-1793D1?style=for-the-badge&logo=archlinux&logoColor=white)](https://aur.archlinux.org/packages/winload-rust-bin)
@@ -44,7 +45,8 @@ Winload는 Roland Riegel의 고전적인 프로젝트인 [nload](https://github.
 
 ## 📥 Python 버전 설치
 > 💡 **구똄 참고사항**: PyPI 및 GitHub/Gitee 소스 코드만 Python 버전입니다.  
-> 모든 패키지 관리자(Scoop, AUR, npm, APT, RPM)는 **Rust 바이너리**를 제공합니다.
+> Cargo만 Rust 소스 코드 로컬 빌드를 제공합니다.  
+> 모든 다른 패키지 관리자(Scoop, AUR, npm, APT, RPM) 및 GitHub Releases는 **Rust 바이너리**를 제공합니다.
 ### Python (pip)
 ```bash
 pip install winload
@@ -58,6 +60,11 @@ npm install -g winload-rust-bin
 npx winload-rust-bin
 ```
 > 6가지 사전 컴파일된 바이너리 포함: x86_64 & ARM64, Windows·Linux·macOS 대응.
+
+### Cargo (소스 코드 빌드)
+```bash
+cargo install winload
+```
 ### Windows (Scoop 이용)
 ```powershell
 scoop bucket add vincentzyu https://github.com/VincentZyuApps/scoop-bucket

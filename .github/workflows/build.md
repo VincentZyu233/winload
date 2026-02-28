@@ -10,15 +10,15 @@ The CI/CD pipeline is driven entirely by **commit message keywords**. Push to `m
 
 ## 🔑 Keywords
 
-| Keyword in commit message | Build (8 platforms) | GitHub Release | Scoop / AUR / npm | PyPI |
-|---------------------------|:---:|:---:|:---:|:---:|
-| *(none)* | ❌ | ❌ | ❌ | ❌ |
-| `build action` | ✅ | ❌ | ❌ | ❌ |
-| `build release` | ✅ | ✅ | ❌ | ❌ |
-| `publish from release` | ❌ | ❌ | ✅ | ❌ |
-| `build publish` | ✅ | ✅ | ✅ | ❌ |
-| `pypi publish` | ❌ | ❌ | ❌ | ✅ |
-| `build publish` + `pypi publish` | ✅ | ✅ | ✅ | ✅ |
+| Keyword in commit message | Build (8 platforms) | GitHub Release | Scoop / AUR / npm | PyPI | crates.io |
+|---------------------------|:---:|:---:|:---:|:---:|:---:|
+| `build action` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `build release` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `build publish` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `publish from release` | ❌ | ❌ | ✅ | ❌ | ❌ |
+| `pypi publish` | ❌ | ❌ | ❌ | ✅ | ❌ |
+| `crates publish` | ❌ | ❌ | ❌ | ❌ | ✅ |
+
 
 > **Note:** `publish from release` fetches binaries from an existing Release without rebuilding. `build publish` does the full pipeline.
 
@@ -27,23 +27,60 @@ The CI/CD pipeline is driven entirely by **commit message keywords**. Push to `m
 ## 🚀 Usage Examples
 
 ```bash
+# ============================================================
+# Single keyword
+# ============================================================
+
 # Just build, verify compilation across all platforms
 git commit --allow-empty -m "ci: test cross-compile (build action)"
 
-# Build + create GitHub Release with artifacts
+# Build + create GitHub Release (no package manager publish)
 git commit -m "release: v0.2.0 (build release)"
 
 # Only update Scoop bucket from the latest existing Release (no rebuild)
 git commit --allow-empty -m "ci: update scoop (publish from release)"
 
-# Full pipeline: build + release + publish to Scoop
-git commit -m "release: v0.2.0 (build publish)"
+# Publish to crates.io only (no build, no release)
+git commit --allow-empty -m "release: v0.2.0 (crates publish)"
 
 # Publish to PyPI only (no build, no release)
 git commit --allow-empty -m "release: v0.2.0 (pypi publish)"
 
-# Full pipeline for BOTH Rust + Python: build + release + Scoop/AUR/npm + PyPI
+# Full pipeline: build + release + publish to Scoop/AUR/npm
+git commit -m "release: v0.2.0 (build publish)"
+
+# ============================================================
+# Two keywords
+# ============================================================
+
+# Build + release + Scoop/AUR/npm + crates.io
+git commit --allow-empty -m "release: v0.2.0 (build publish, crates publish)"
+
+# PyPI + crates.io (no build, no release)
+git commit --allow-empty -m "release: v0.2.0 (pypi publish, crates publish)"
+
+# Build + release + Scoop/AUR/npm + PyPI
 git commit --allow-empty -m "release: v0.2.0 (build publish, pypi publish)"
+
+# ============================================================
+# Three keywords
+# ============================================================
+
+# Full pipeline: build + release + Scoop/AUR/npm + PyPI + crates.io
+git commit --allow-empty -m "release: v0.2.0 (build publish, pypi publish, crates publish)"
+
+# ============================================================
+# Regular commits (no build, no publish)
+# ============================================================
+
+# Just update documentation
+git commit -m "docs: update README"
+
+# Fix a bug
+git commit -m "fix: resolve network interface detection issue"
+
+# Add a new feature
+git commit -m "feat: add dark mode support"
 ```
 
 ## 🏗️ Build Targets (Rust)
@@ -82,8 +119,11 @@ check ──→ build ──→ release ──→ publish
   │         └─ Compile for 8 platform targets
   │            Upload build artifacts
   │
-  └─ Parse commit message keywords
-     Extract version from Cargo.toml
+  ├─→ publish-crates-io (after build success, parallel with Scoop/AUR/npm)
+  │    cargo publish --allow-dirty
+  │
+  └─→ publish-pypi (independent, no build needed)
+       uv build → uv publish
 ```
 
 ```mermaid
@@ -185,12 +225,26 @@ The `pypi publish` keyword triggers publishing the Python package to PyPI:
 
 A repository secret `PYPI_TOKEN` must be set in **Settings → Secrets → Actions**, containing a PyPI API token with "Entire account" scope.
 
+## 📦 crates.io Publish (Rust)
+
+The `crates publish` keyword triggers publishing the Rust crate to [crates.io](https://crates.io/crates/winload):
+
+1. Installs Rust stable toolchain
+2. Runs `cargo publish --allow-dirty` to publish to crates.io
+3. Users can install via `cargo install winload`
+
+### Prerequisite
+
+A repository secret `CARGO_REGISTRY_TOKEN` must be set in **Settings → Secrets → Actions**, containing a crates.io API token.
+
+> **Note:** This job runs in parallel with Scoop/AUR/npm after the build completes, ensuring the compiled binary is ready before publishing.
+
 ## 📌 Version
 
 The version is automatically extracted from `rust/Cargo.toml` (Rust) or `py/pyproject.toml` (Python) and used for:
 - Release tag name (e.g. `v0.1.5`)
 - Artifact filenames (e.g. `winload-windows-x86_64-v0.1.5.exe`)
-- Scoop/AUR/npm/PyPI manifest version field
+- Scoop/AUR/npm/PyPI/crates.io manifest version field
 
 > **Note:** The npm package version also comes from `rust/Cargo.toml`. During CI, the `publish-npm` job dynamically injects the version into `package.json` — the `0.0.0` placeholder in the repository is never published.
 
@@ -202,3 +256,4 @@ The version is automatically extracted from `rust/Cargo.toml` (Rust) or `py/pypr
 | `AUR_SSH_KEY` | AUR user SSH private key | Push to AUR |
 | `NPM_TOKEN` | npm Automation token | Publish to npm |
 | `PYPI_TOKEN` | PyPI API token (Scope: "Entire account") | Push to PyPI |
+| `CARGO_REGISTRY_TOKEN` | crates.io API token | Publish to crates.io |

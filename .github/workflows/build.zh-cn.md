@@ -10,15 +10,15 @@ CI/CD 流水线完全由 **commit 信息中的关键词** 驱动。推送到 `ma
 
 ## 🔑 关键词
 
-| Commit 信息中的关键词 | 构建（8 平台） | GitHub Release | Scoop / AUR / npm | PyPI |
-|----------------------|:---:|:---:|:---:|:---:|
-| *（无关键词）* | ❌ | ❌ | ❌ | ❌ |
-| `build action` | ✅ | ❌ | ❌ | ❌ |
-| `build release` | ✅ | ✅ | ❌ | ❌ |
-| `publish from release` | ❌ | ❌ | ✅ | ❌ |
-| `build publish` | ✅ | ✅ | ✅ | ❌ |
-| `pypi publish` | ❌ | ❌ | ❌ | ✅ |
-| `build publish` + `pypi publish` | ✅ | ✅ | ✅ | ✅ |
+| Commit 信息中的关键词 | 构建（8 平台） | GitHub Release | Scoop / AUR / npm | PyPI | crates.io |
+|----------------------|:---:|:---:|:---:|:---:|:---:|
+| `build action` | ✅ | ❌ | ❌ | ❌ | ❌ |
+| `build release` | ✅ | ✅ | ❌ | ❌ | ❌ |
+| `build publish` | ✅ | ✅ | ✅ | ❌ | ❌ |
+| `publish from release` | ❌ | ❌ | ✅ | ❌ | ❌ |
+| `pypi publish` | ❌ | ❌ | ❌ | ✅ | ❌ |
+| `crates publish` | ❌ | ❌ | ❌ | ❌ | ✅ |
+
 
 > **说明:** `publish from release` 从已有的 Release 拉取二进制发布，不会重新构建。`build publish` 则是完整流水线。
 
@@ -27,23 +27,60 @@ CI/CD 流水线完全由 **commit 信息中的关键词** 驱动。推送到 `ma
 ## 🚀 用法示例
 
 ```bash
+# ============================================================
+# 单个关键词
+# ============================================================
+
 # 仅构建，验证所有平台的编译
 git commit --allow-empty -m "ci: test cross-compile (build action)"
 
-# 构建 + 创建 GitHub Release
+# 构建 + 创建 GitHub Release（不发布到包管理器）
 git commit -m "release: v0.2.0 (build release)"
 
 # 仅更新 Scoop bucket（从已有的最新 Release 拉取二进制，不重新构建）
 git commit --allow-empty -m "ci: update scoop (publish from release)"
 
-# 完整流水线：构建 + 发布 Release + 推送 Scoop
-git commit -m "release: v0.2.0 (build publish)"
+# 仅发布到 crates.io（不构建，不发布 Release）
+git commit --allow-empty -m "release: v0.2.0 (crates publish)"
 
 # 仅发布到 PyPI（不构建，不发布 Release）
 git commit --allow-empty -m "release: v0.2.0 (pypi publish)"
 
-# Rust + Python 全套：构建 + Release + Scoop/AUR/npm + PyPI
+# 完整流水线：构建 + Release + 发布到 Scoop/AUR/npm
+git commit -m "release: v0.2.0 (build publish)"
+
+# ============================================================
+# 两个关键词组合
+# ============================================================
+
+# 构建 + Release + Scoop/AUR/npm + crates.io
+git commit --allow-empty -m "release: v0.2.0 (build publish, crates publish)"
+
+# PyPI + crates.io（不构建，不发布 Release）
+git commit --allow-empty -m "release: v0.2.0 (pypi publish, crates publish)"
+
+# 构建 + Release + Scoop/AUR/npm + PyPI
 git commit --allow-empty -m "release: v0.2.0 (build publish, pypi publish)"
+
+# ============================================================
+# 三个关键词组合
+# ============================================================
+
+# 完整流水线：构建 + Release + Scoop/AUR/npm + PyPI + crates.io
+git commit --allow-empty -m "release: v0.2.0 (build publish, pypi publish, crates publish)"
+
+# ============================================================
+# 常规 commit（不需要构建和发布）
+# ============================================================
+
+# 仅更新文档
+git commit -m "docs: update README"
+
+# 修复 bug
+git commit -m "fix: resolve network interface detection issue"
+
+# 添加新功能
+git commit -m "feat: add dark mode support"
 ```
 
 ## 🏗️ 构建目标 (Rust)
@@ -82,8 +119,11 @@ check ──→ build ──→ release ──→ publish
   │         └─ 编译 8 个平台目标
   │            上传构建产物
   │
-  └─ 解析 commit 信息关键词
-     从 Cargo.toml 提取版本号
+  ├─→ publish-crates-io（构建成功后并行，与 Scoop/AUR/npm 同时）
+  │    cargo publish --allow-dirty
+  │
+  └─→ publish-pypi（独立运行，不需要构建）
+       uv build → uv publish
 ```
 
 ```mermaid
@@ -185,12 +225,26 @@ flowchart TB
 
 需要在仓库的 **Settings → Secrets → Actions** 中设置 `PYPI_TOKEN` 密钥，值为一个拥有 "Entire account" 权限的 PyPI API Token。
 
+## 📦 crates.io 发布 (Rust)
+
+`crates publish` 关键词会触发将 Rust 包发布到 [crates.io](https://crates.io/crates/winload)：
+
+1. 安装 Rust stable 工具链
+2. 运行 `cargo publish --allow-dirty` 发布到 crates.io
+3. 用户可以通过 `cargo install winload` 安装
+
+### 前置条件
+
+需要在仓库的 **Settings → Secrets → Actions** 中设置 `CARGO_REGISTRY_TOKEN` 密钥，值为 crates.io API Token。
+
+> **注意：** 此任务在构建成功后与 Scoop/AUR/npm 并行运行，确保编译产物准备好后再发布。
+
 ## 📌 版本号
 
 版本号自动从 `rust/Cargo.toml` (Rust) 或 `py/pyproject.toml` (Python) 中提取，用于：
 - Release 标签名（如 `v0.1.5`）
 - 产物文件名（如 `winload-windows-x86_64-v0.1.5.exe`）
-- Scoop/AUR/npm/PyPI 清单文件中的版本字段
+- Scoop/AUR/npm/PyPI/crates.io 清单文件中的版本字段
 
 > **注意：** npm 包的版本号同样来自 `rust/Cargo.toml`。CI 中 `publish-npm` 任务会在发布前将版本号动态注入 `package.json` —— 仓库中的 `0.0.0` 占位符不会被发布。
 
@@ -202,3 +256,4 @@ flowchart TB
 | `AUR_SSH_KEY` | AUR 用户 SSH 私钥 | 推送到 AUR |
 | `NPM_TOKEN` | npm Automation Token | 发布到 npm |
 | `PYPI_TOKEN` | PyPI API Token（Scope: "Entire account"） | 推送到 PyPI |
+| `CARGO_REGISTRY_TOKEN` | crates.io API Token | 发布到 crates.io |
