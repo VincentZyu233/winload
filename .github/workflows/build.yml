@@ -823,7 +823,7 @@ jobs:
         run: |
           pwd
           ls -la
-          cp ./README.md ./rust/README.md
+          cp ./readme.md ./rust/README.md
 
       - name: Publish to crates.io
         env:
