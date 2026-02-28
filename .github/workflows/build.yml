@@ -820,7 +820,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Prepare README for crates.io
-        run: cp README.md rust/README.md
+        run: |
+          pwd
+          ls -la
+          cp ./README.md ./rust/README.md
 
       - name: Publish to crates.io
         env:
